@@ -10,7 +10,7 @@ echo "  VenuePro SaaS — DigitalOcean Setup"
 echo "============================================"
 
 # ─── Configuration — EDIT THESE ───────────────────────────
-REPO_URL="https://github.com/YOUR_USERNAME/venuepro-saas.git"  # ← CHANGE THIS
+REPO_URL="https://github.com/SarthakVaishampayan/VenuePro.git"
 APP_DIR="/root/venuepro-saas"
 DOMAIN=""  # e.g., "venuepro.yourdomain.com" (leave empty for IP-only)
 ADMIN_EMAIL=""  # e.g., "admin@yourdomain.com" (for SSL cert)
