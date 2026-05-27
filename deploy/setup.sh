@@ -1,17 +1,17 @@
 #!/bin/bash
 # ============================================================
-# VENUEPRO SAAS — Oracle Cloud First-Time Setup
-# Run this ONCE on a fresh Ubuntu 22.04/24.04 VM
+# VENUEPRO SAAS — DigitalOcean First-Time Setup
+# Run this ONCE on a fresh Ubuntu 22.04/24.04 Droplet
 # ============================================================
 set -e
 
 echo "============================================"
-echo "  VenuePro SaaS — Oracle Cloud Setup"
+echo "  VenuePro SaaS — DigitalOcean Setup"
 echo "============================================"
 
 # ─── Configuration — EDIT THESE ───────────────────────────
 REPO_URL="https://github.com/YOUR_USERNAME/venuepro-saas.git"  # ← CHANGE THIS
-APP_DIR="/home/ubuntu/venuepro-saas"
+APP_DIR="/root/venuepro-saas"
 DOMAIN=""  # e.g., "venuepro.yourdomain.com" (leave empty for IP-only)
 ADMIN_EMAIL=""  # e.g., "admin@yourdomain.com" (for SSL cert)
 # ──────────────────────────────────────────────────────────
@@ -71,11 +71,11 @@ log "Firewall enabled: SSH, Nginx Full"
 # ─── 6. Install PM2 Globally ──────────────────────────────
 echo -e "\n${YELLOW}─── 6. Installing PM2 ───${NC}"
 sudo npm install -g pm2
-pm2 startup systemd -u ubuntu --hp /home/ubuntu
+pm2 startup systemd -u root --hp /root
 
 # ─── 7. Clone Repository ─────────────────────────────────
 echo -e "\n${YELLOW}─── 7. Cloning Repository ───${NC}"
-cd /home/ubuntu
+mkdir -p /root
 git clone "$REPO_URL" "$APP_DIR"
 cd "$APP_DIR"
 
@@ -190,6 +190,6 @@ echo "  Next steps:"
 echo "  1. Edit server/.env with strong JWT secrets"
 echo "  2. If using Vercel for frontend:"
 echo "     - Deploy client/ to Vercel"
-echo "     - Set VITE_API_URL=http://YOUR_ORACLE_IP:5000 in Vercel"
+echo "     - Set VITE_API_URL=http://YOUR_DROPLET_IP:5000 in Vercel"
 echo "  3. Run deploy/deploy.sh for future updates"
 echo ""

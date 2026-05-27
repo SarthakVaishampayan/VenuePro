@@ -1,7 +1,8 @@
-# 🚀 VenuePro SaaS — Oracle Cloud Deployment Guide
+# 🚀 VenuePro SaaS — DigitalOcean Deployment Guide
 
-> **Architecture:** Backend + MongoDB on Oracle Cloud VM · Frontend on **Vercel** (free CDN)
-> **Oracle Free Tier Specs:** 4 ARM CPU cores · 24GB RAM · 200GB storage — **always-on, no spin-down**
+> **Architecture:** Backend + MongoDB on DigitalOcean Droplet · Frontend on **Vercel** (free CDN)
+> **DigitalOcean Droplet Specs:** 1 vCPU · 1GB RAM · 25GB SSD — **always-on, no spin-down**
+> **Cost:** **$0 for ~33 months** using GitHub Student Pack $200 credit
 
 ---
 
@@ -11,7 +12,8 @@ Before starting, you need:
 
 | Item | Where to get it |
 |------|----------------|
-| **Oracle Cloud account** | [cloud.oracle.com](https://cloud.oracle.com) — sign up with debit card (free tier) |
+| **GitHub Student Developer Pack** | [education.github.com/pack](https://education.github.com/pack) — already active ✅ |
+| **DigitalOcean account** | [digitalocean.com](https://digitalocean.com) — sign up via GitHub Student Pack to **get $200 credit** |
 | **GitHub repository** | Push your code to GitHub: `saas-platform/` as the root |
 | **Vercel account** | [vercel.com](https://vercel.com) — sign up with GitHub (free) |
 | **Domain (optional)** | Any domain registrar — needed for HTTPS |
@@ -26,10 +28,10 @@ Before starting, you need:
                     │   Frontend: React/Vite         │
                     │   https://venuepro.vercel.app  │
                     └──────────┬───────────────────┘
-                               │ API calls to Oracle IP
+                               │ API calls to Droplet IP
                                ▼
 ┌──────────────────────────────────────────────────────┐
-│              Oracle Cloud VM (Ubuntu 22.04)           │
+│           DigitalOcean Droplet (Ubuntu 22.04)         │
 │                                                       │
 │   Nginx (port 80/443)  ←  reverse proxy              │
 │       │                                              │
@@ -46,45 +48,66 @@ Before starting, you need:
 
 **Two options for frontend:**
 1. **Vercel** (recommended) — Free, global CDN, instant loads
-2. **Same VM via Nginx** — Simpler, one domain, but no CDN
+2. **Same Droplet via Nginx** — Simpler, one domain, but no CDN
 
 ---
 
-## Step 1: Set Up Oracle Cloud VM
+## Step 1: Set Up DigitalOcean Droplet
 
-### 1.1 — Create a VM Instance
+### 1.1 — Claim Your $200 Credit
 
-1. Log into [cloud.oracle.com](https://cloud.oracle.com)
-2. Go to **Compute → Instances → Create Instance**
+1. Go to [education.github.com/pack](https://education.github.com/pack)
+2. Find the **DigitalOcean** card and click **"Get access"**
+3. You'll be redirected to DigitalOcean — sign up with GitHub
+4. The **$200 credit** is applied automatically to your account
+5. No upfront payment needed — just add a debit card for identity verification (won't be charged until credit runs out)
+
+> ⚠️ **Add a billing alert:** Go to **Billing → Alerts** and set an alert at $150 so you know when to renew or upgrade.
+
+### 1.2 — Create a Droplet
+
+1. Log into [cloud.digitalocean.com](https://cloud.digitalocean.com)
+2. Click **Create → Droplets**
 3. Configure:
-   - **Name:** `venuepro-saas`
-   - **Image:** Canonical Ubuntu 22.04 (or 24.04)
-   - **Shape:** VM.Standard.A1.Flex (ARM)
-     - **OCPUs:** 4
-     - **Memory:** 24 GB
-   - **SSH Key:** Download or generate a key pair (save the `.pem` file!)
-   - **Boot volume:** 100 GB (free)
-4. Click **Create** and wait ~2 minutes
+   - **Region:** Choose the one closest to you (e.g., Bangalore for India, Singapore for SE Asia)
+   - **Image:** Ubuntu 22.04 LTS
+   - **Size:** **Basic → Regular → $6/month** (1 vCPU, 1GB RAM, 25GB SSD)
+     - *Your $200 credit covers this for ~33 months*
+   - **Authentication:** SSH Key (recommended) or Password
+     - If using SSH: Click **New SSH Key** → paste your public key (`~/.ssh/id_rsa.pub`)
+     - *Don't have an SSH key?* Run `ssh-keygen -t ed25519 -C "your@email.com"` then `cat ~/.ssh/id_rsa.pub`
+   - **Backups:** Optional (costs extra 20%, skip if you want to save credits)
+   - **Hostname:** `venuepro-saas`
+4. Click **Create Droplet** → wait ~1 minute
 
-### 1.2 — Connect to Your VM
+### 1.3 — Connect to Your Droplet
 
 ```bash
-# On your local machine (PowerShell/Terminal):
-chmod 400 ~/Downloads/your-key.pem
-ssh -i ~/Downloads/your-key.pem ubuntu@<YOUR_VM_IP>
+# If using SSH key:
+ssh root@<YOUR_DROPLET_IP>
+
+# If using password, you'll get the root password via email
 ```
 
-> Your VM's IP is shown in the Oracle Cloud console. Note it down.
+> Your Droplet's IP is shown in the DigitalOcean dashboard. Note it down.
 
-### 1.3 — Configure Security (Firewall)
+### 1.4 — Configure Firewall (Cloud Firewall)
 
-In Oracle Cloud Console, go to your instance → **Virtual Cloud Network** → **Security Lists** → **Add Ingress Rules**:
+DigitalOcean has a **cloud firewall** you can apply:
 
-| Source Type | Source | Protocol | Port | Description |
-|-------------|--------|----------|------|-------------|
-| CIDR | `0.0.0.0/0` | TCP | `22` | SSH (already added) |
-| CIDR | `0.0.0.0/0` | TCP | `80` | HTTP |
-| CIDR | `0.0.0.0/0` | TCP | `443` | HTTPS |
+1. Go to **Networking → Firewalls → Create Firewall**
+2. Add Inbound Rules:
+
+| Source | Protocol | Port | Description |
+|--------|----------|------|-------------|
+| `0.0.0.0/0` | TCP | `22` | SSH |
+| `0.0.0.0/0` | TCP | `80` | HTTP |
+| `0.0.0.0/0` | TCP | `443` | HTTPS |
+
+3. Click **Add Droplets** → select your `venuepro-saas` droplet
+4. Click **Create Firewall**
+
+> Alternatively, you can use UFW on the droplet itself (the setup script does this automatically).
 
 ---
 
@@ -112,9 +135,9 @@ git push -u origin main
 
 ---
 
-## Step 3: Run Setup on Oracle VM
+## Step 3: Run Setup on DigitalOcean Droplet
 
-SSH into your VM, then:
+SSH into your Droplet, then:
 
 ```bash
 # 1. Edit the setup script with your repo URL
@@ -124,8 +147,10 @@ nano deploy/setup.sh
 
 # 2. Make it executable and run
 chmod +x deploy/setup.sh
-sudo bash deploy/setup.sh
+bash deploy/setup.sh
 ```
+
+> **Note:** You don't need `sudo` for the setup script since you're already logged in as root on DigitalOcean.
 
 ### 🔐 Custom Super Admin Credentials
 
@@ -134,7 +159,7 @@ During setup, the script will **prompt you** for your superadmin credentials:
 ```
 Super Admin Name [Super Admin]: Sid
 Super Admin Email [admin@venuepro.com]: admin@myvenue.com
-Super Admin Password [Admin@123]: 
+Super Admin Password [Admin@123]:
 ```
 
 > **Important:** This is your ONE superadmin account. It grants full access to the platform.
@@ -185,7 +210,7 @@ pm2 restart venuepro-api
 **Option A: With a domain**
 
 ```bash
-# On the VM, run:
+# On the Droplet, run:
 sudo certbot --nginx -d yourdomain.com --non-interactive --agree-tos -m admin@yourdomain.com
 ```
 
@@ -201,7 +226,7 @@ HTTPS won't work with a bare IP. Two alternatives:
 
 ## Step 5: Deploy Frontend to Vercel
 
-This is optional — you can also serve the frontend from the VM via Nginx. But Vercel is faster.
+This is optional — you can also serve the frontend from the Droplet via Nginx. But Vercel is faster.
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project**
 2. Import your GitHub repo (`venuepro-saas`)
@@ -211,17 +236,17 @@ This is optional — you can also serve the frontend from the VM via Nginx. But 
    - **Build Command:** `npm run build`
    - **Output Directory:** `dist`
 4. Add Environment Variables:
-   - `VITE_API_URL=https://your-oracle-ip.nip.io` (or your domain)
+   - `VITE_API_URL=http://<YOUR_DROPLET_IP>` (or `https://yourdomain.com`)
 5. Click **Deploy**
 
-⚠️ **Important:** Update `CORS_ORIGINS` in `server/.env` on your VM to include your Vercel domain.
+⚠️ **Important:** Update `CORS_ORIGINS` in `server/.env` on your Droplet to include your Vercel domain.
 
 ---
 
 ## Step 6: Verify Everything Works
 
 ```bash
-# On the VM — check services
+# On the Droplet — check services
 pm2 status
 sudo systemctl status nginx
 sudo systemctl status mongod
@@ -230,13 +255,13 @@ sudo systemctl status mongod
 curl http://localhost:5000/api/health
 
 # From your browser
-http://YOUR_VM_IP/api/health
-http://YOUR_VM_IP/api-docs
+http://YOUR_DROPLET_IP/api/health
+http://YOUR_DROPLET_IP/api-docs
 ```
 
 ### Test login:
 ```
-URL: http://YOUR_VM_IP
+URL: http://YOUR_DROPLET_IP
 Email: (the email you set during setup)
 Password: (the password you set during setup)
 ```
@@ -248,11 +273,11 @@ Password: (the password you set during setup)
 Whenever you push new code to GitHub:
 
 ```bash
-# SSH into the VM
-ssh -i your-key.pem ubuntu@YOUR_VM_IP
+# SSH into the Droplet
+ssh root@YOUR_DROPLET_IP
 
 # Run the deploy script
-bash deploy/deploy.sh
+bash /root/venuepro-saas/deploy/deploy.sh
 ```
 
 That's it. The script pulls the latest code, rebuilds, and restarts.
@@ -288,11 +313,11 @@ git pull
 
 | Problem | Solution |
 |---------|----------|
-| `Connection refused` on port 22 | Check Oracle Security List — SSH rule must exist |
+| `Connection refused` on port 22 | Check DigitalOcean Cloud Firewall — SSH rule must exist |
 | `502 Bad Gateway` from Nginx | Node server isn't running: `pm2 start venuepro-api` |
 | `MongoDB connection error` | Check: `sudo systemctl status mongod` |
 | `CORS error` in browser | Update `CORS_ORIGINS` in `server/.env` |
-| Port 80 not opening | Check Oracle Security List + `sudo ufw status` |
+| Port 80 not opening | Check DigitalOcean Cloud Firewall + `sudo ufw status` on Droplet |
 | App returning HTML instead of JSON | Nginx not proxying `/api/` correctly — check nginx.conf |
 
 ---
@@ -301,13 +326,15 @@ git pull
 
 | Service | Cost | Notes |
 |---------|------|-------|
-| Oracle Cloud VM | **Free** | 4 OCPU · 24GB RAM · Always-on |
-| MongoDB | **Free** | Runs on the same VM |
+| DigitalOcean Droplet | **$0 for 33 months** | $6/mo droplet covered by $200 Student Pack credit |
+| MongoDB | **Free** | Runs on the same Droplet |
 | Vercel (frontend) | **Free** | 100GB bandwidth/month |
-| Domain (optional) | ~$10/year | e.g., GoDaddy, Namecheap |
+| Domain (optional) | ~$10/year | e.g., GoDaddy, Namecheap — or free `.me` domain via Student Pack! |
 | SSL certificate | **Free** | Let's Encrypt (auto-renewed) |
 
-**Total: $0/year** (or ~$10 if you buy a domain)
+**Total: $0 for ~33 months** (then $6/month — or switch providers)
+
+> 💡 **Tip:** Before the $200 credit expires, check if you're eligible to renew your GitHub Student Pack or switch to another free tier.
 
 ---
 

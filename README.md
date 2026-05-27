@@ -53,7 +53,7 @@
                      │ API calls
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Oracle Cloud VM (Ubuntu)                    │
+│              DigitalOcean Droplet (Ubuntu)                │
 │                                                          │
 │  Nginx (80/443)                                          │
 │    ├── /api/*  →  Express (PM2, port 5000)              │
@@ -229,13 +229,13 @@ npm run lint
 
 ## 🚢 Deployment
 
-**Recommended stack:** Oracle Cloud VM (free tier) + Vercel (free)
+**Recommended stack:** DigitalOcean Droplet (GitHub Student Pack $200 credit) + Vercel (free)
 
 | Component | Platform | Cost |
 |-----------|----------|------|
-| Backend + DB | Oracle Cloud VM | **Free** (4 OCPU, 24GB RAM) |
+| Backend + DB | DigitalOcean Droplet | **$0 for ~33 months** ($6/mo covered by $200 Student Pack credit) |
 | Frontend | Vercel | **Free** (100GB bandwidth) |
-| Domain | Optional | ~$10/year |
+| Domain | Optional | ~$10/year (or free `.me` via Student Pack) |
 
 See **[DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md)** for step-by-step instructions.
 
@@ -244,11 +244,11 @@ See **[DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md)** for step-by-step instructions.
 # 1. Push to GitHub
 git push origin main
 
-# 2. SSH into Oracle VM
-ssh -i your-key.pem ubuntu@YOUR_VM_IP
+# 2. SSH into DigitalOcean Droplet
+ssh root@YOUR_DROPLET_IP
 
 # 3. Run setup (first time only)
-sudo bash deploy/setup.sh
+bash deploy/setup.sh
 
 # 4. Future updates
 bash deploy/deploy.sh

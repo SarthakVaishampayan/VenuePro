@@ -1,12 +1,12 @@
 #!/bin/bash
 # ============================================================
 # VENUEPRO SAAS — Deployment Script
-# Run this on the Oracle Cloud VM to deploy updates
+# Run this on the DigitalOcean Droplet to deploy updates
 # Usage: bash deploy/deploy.sh
 # ============================================================
 set -e
 
-APP_DIR="/home/ubuntu/venuepro-saas"
+APP_DIR="/root/venuepro-saas"
 BRANCH="main"
 
 GREEN='\033[0;32m'
