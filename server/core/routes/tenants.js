@@ -35,7 +35,7 @@ const createTenantSchema = z.object({
   }).optional(),
   timezone: z.string().optional(),
   currency: z.string().optional(),
-  planKey: z.enum(['free', 'starter', 'professional', 'enterprise']).default('free'),
+  planKey: z.enum(['free', 'starter', 'professional', 'enterprise']).optional(),
   billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).default('monthly'),
   trialDays: z.number().int().min(0).max(90).optional()
 });
@@ -116,6 +116,7 @@ router.get('/', superAdminAuth, async (req, res, next) => {
     const [tenants, total] = await Promise.all([
       Tenant.find(filter)
         .populate('businessTypeId', 'key name labels')
+        .populate('subscription.planId', 'name key')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

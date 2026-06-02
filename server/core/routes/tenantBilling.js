@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { tenantAuth } from '../middleware/auth.js';
 import { success as successResponse, error as errorResponse, paginationMeta } from '../utils/responseHelper.js';
 import Tenant from '../models/Tenant.js';
@@ -34,7 +35,7 @@ router.get('/', tenantAuth, async (req, res, next) => {
         .lean(),
 
       SubscriptionInvoice.aggregate([
-        { $match: { tenantId: tenantId } },
+        { $match: { tenantId: new mongoose.Types.ObjectId(tenantId) } },
         { $group: { _id: null, total: { $sum: '$totalAmount' }, paid: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } }, pending: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, '$totalAmount', 0] } }, count: { $sum: 1 }, paidCount: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] } } } }
       ]),
 

@@ -298,7 +298,24 @@ export default function Settings() {
                       </div>
                       <div>
                         <p className="text-xs text-text-muted">Period End</p>
-                        <p className="text-sm text-text-primary">{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-text-primary">{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+                          {(() => {
+                            const now = new Date();
+                            const startDate = billing.subscription.currentPeriodStart;
+                            const endDate = billing.subscription.currentPeriodEnd;
+                            if (startDate && endDate && now >= new Date(startDate)) {
+                              const daysLeft = Math.ceil((new Date(endDate) - now) / (1000 * 60 * 60 * 24));
+                              const color = daysLeft <= 3 ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : daysLeft <= 15 ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400';
+                              return (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+                                  {daysLeft <= 0 ? 'Overdue' : `${daysLeft}d left`}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </div>
                       <div>
                         <p className="text-xs text-text-muted">Total Paid</p>

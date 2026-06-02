@@ -272,9 +272,31 @@ export default function OwnerDetail() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-sm text-text-muted">End Date</span>
-                  <span className="text-sm font-medium text-text-primary">
-                    {sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : '—'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-text-primary">
+                      {sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : '—'}
+                    </span>
+                    {(() => {
+                      const now = new Date();
+                      const startDate = sub?.currentPeriodStart;
+                      const endDate = sub?.currentPeriodEnd;
+                      if (startDate && endDate && now >= new Date(startDate)) {
+                        const daysLeft = Math.ceil((new Date(endDate) - now) / (1000 * 60 * 60 * 24));
+                        return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            daysLeft <= 3
+                              ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                              : daysLeft <= 15
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                          }`}>
+                            {daysLeft <= 0 ? 'Overdue' : `${daysLeft}d left`}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-sm text-text-muted">Invoices</span>

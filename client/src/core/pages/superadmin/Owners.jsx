@@ -111,11 +111,15 @@ export default function Owners() {
       render: (row) => <StatusBadge status={row.subscription?.status || 'inactive'} />
     },
     {
-      key: 'subscription',
+      key: 'plan',
       label: 'Plan',
-      render: (row) => (
-        <span className="text-sm capitalize text-text-primary">{row.subscription?.planId || '—'}</span>
-      )
+      render: (row) => {
+        const plan = row.subscription?.planId;
+        const planName = plan?.name || plan?.key || '';
+        return (
+          <span className="text-sm capitalize text-text-primary">{planName || '—'}</span>
+        );
+      }
     },
     {
       key: 'createdAt',

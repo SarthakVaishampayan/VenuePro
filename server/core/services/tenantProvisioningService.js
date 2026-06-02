@@ -32,10 +32,17 @@ class TenantProvisioningService {
    */
   async provision(data) {
     // 1. Resolve plan
-    const planKey = data.planKey || 'free';
-    const plan = await SubscriptionPlan.findByKey(planKey);
+    const planKey = data.planKey;
+    let plan;
+    if (planKey) {
+      plan = await SubscriptionPlan.findByKey(planKey);
+    } else {
+      // No plan key provided — pick the cheapest active plan
+      plan = await SubscriptionPlan.findOne({ isActive: true })
+        .sort({ sortOrder: 1, 'prices.monthly': 1 });
+    }
     if (!plan) {
-      throw new Error(`Subscription plan '${planKey}' not found or inactive`);
+      throw new Error('No active subscription plan found. Please create at least one active plan.');
     }
 
     // 2. Generate password
@@ -64,9 +71,16 @@ class TenantProvisioningService {
     });
 
     // 4. Create subscription
-    const trialDays = data.trialDays || plan.trialDays;
+    const trialDays = data.trialDays ?? plan.trialDays;
     const billingCycle = data.billingCycle || 'monthly';
     const price = plan.prices[billingCycle] || plan.prices.monthly;
+
+    const now = new Date();
+    // Subscription mode (trialDays = 0): set currentPeriodEnd to now so payment is needed
+    // Trial mode: set it 30 days out as a placeholder until trial ends
+    const currentPeriodEnd = trialDays > 0
+      ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+      : now;
 
     const subscription = await TenantSubscription.create({
       tenantId: tenant._id,
@@ -80,12 +94,12 @@ class TenantProvisioningService {
       billingCycle,
       amount: price,
       status: trialDays > 0 ? 'trialing' : 'active',
-      trialStartDate: trialDays > 0 ? new Date() : null,
-      trialEndDate: trialDays > 0 ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000) : null,
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      trialStartDate: trialDays > 0 ? now : null,
+      trialEndDate: trialDays > 0 ? new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000) : null,
+      currentPeriodStart: now,
+      currentPeriodEnd,
       gracePeriodDays: 7,
-      gracePeriodEnd: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000)
+      gracePeriodEnd: new Date(now.getTime() + 37 * 24 * 60 * 60 * 1000)
     });
 
     // 5. Create owner user account
@@ -135,7 +149,6 @@ class TenantProvisioningService {
   async createDemo(data) {
     return this.provision({
       ...data,
-      planKey: 'free',
       isDemo: true,
       trialDays: 0
     });

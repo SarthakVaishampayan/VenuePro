@@ -41,7 +41,7 @@ const signupSchema = z.object({
   currency: z.string().default('INR'),
 
   // Plan selection
-  planKey: z.enum(['free', 'starter', 'professional', 'enterprise']).default('free'),
+  planKey: z.enum(['free', 'starter', 'professional', 'enterprise']).optional(),
   billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).default('monthly')
 });
 

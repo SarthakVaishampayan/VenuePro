@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CreditCard, CheckCircle, Download, ArrowLeft,
-  ArrowRight, Copy, Eye, EyeOff
+  ArrowRight, Copy, Clock, Sparkles
 } from 'lucide-react';
 import api from '../../services/api';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { Card } from '../../components/common/Card';
+import { clsx } from 'clsx';
 
 const steps = [
   { id: 1, label: 'Business Type' },
@@ -35,9 +36,10 @@ export default function CreateOwner() {
     address: { street: '', city: '', state: '', country: 'India' },
     timezone: 'Asia/Kolkata',
     currency: 'INR',
-    planKey: 'free',
-    billingCycle: 'monthly',
-    trialDays: 14
+    mode: 'trial', // 'trial' | 'subscription'
+    trialDays: 14,
+    planKey: '',
+    billingCycle: 'monthly'
   });
 
   const navigate = useNavigate();
@@ -64,6 +66,17 @@ export default function CreateOwner() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const setMode = (mode) => {
+    setForm(prev => ({
+      ...prev,
+      mode,
+      // Reset subscription-specific fields when switching to trial
+      ...(mode === 'trial' ? { planKey: '', billingCycle: 'monthly' } : {}),
+      // Reset trial-specific fields when switching to subscription
+      ...(mode === 'subscription' ? { trialDays: 0 } : {})
+    }));
+  };
+
   const validateStep = () => {
     setError('');
     switch (currentStep) {
@@ -77,6 +90,14 @@ export default function CreateOwner() {
         if (!form.ownerPhone) { setError('Owner phone is required'); return false; }
         return true;
       case 3:
+        if (form.mode === 'subscription' && !form.planKey) {
+          setError('Please select a plan');
+          return false;
+        }
+        if (form.mode === 'trial' && (!form.trialDays || form.trialDays < 1)) {
+          setError('Trial days must be at least 1');
+          return false;
+        }
         return true;
       default:
         return true;
@@ -98,7 +119,14 @@ export default function CreateOwner() {
     setSubmitting(true);
     setError('');
     try {
-      const { data } = await api.post('/tenants', form);
+      const payload = {
+        ...form,
+        // For subscription mode, ensure trialDays is 0 so no trial period
+        trialDays: form.mode === 'subscription' ? 0 : form.trialDays,
+        // For trial mode, don't send planKey — server picks cheapest active plan
+        ...(form.mode === 'trial' ? { planKey: undefined } : {})
+      };
+      const { data } = await api.post('/tenants', payload);
       setResult(data.data);
     } catch (err) {
       setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to create tenant');
@@ -111,7 +139,14 @@ export default function CreateOwner() {
     navigator.clipboard.writeText(text);
   };
 
+  const selectedPlan = plans.find(p => p.key === form.planKey);
+
   if (result) {
+    // Use form.mode to determine display (Tenant's embedded subscription defaults to 'trialing')
+    const isTrial = form.mode === 'trial';
+    const trialEndDate = result.tenant?.subscription?.trialEndsAt;
+    const daysRemaining = trialEndDate ? Math.ceil((new Date(trialEndDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center">
@@ -121,6 +156,49 @@ export default function CreateOwner() {
           <h1 className="text-2xl font-bold text-text-primary">Portal Created!</h1>
           <p className="text-text-muted mt-1">Tenant provisioned successfully</p>
         </div>
+
+        {/* Mode-specific info */}
+        {isTrial ? (
+          <Card>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                <Clock className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Trial Portal</h3>
+                <p className="text-xs text-text-muted">
+                  {trialEndDate
+                    ? `Expires on ${new Date(trialEndDate).toLocaleDateString()} · ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`
+                    : 'Free trial'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                The owner can use the portal during the trial period. After it expires, you can record a payment to convert them to a paid plan.
+              </p>
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                <CreditCard className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Subscription Portal</h3>
+                <p className="text-xs text-text-muted capitalize">{form.planKey} Plan · {form.billingCycle} billing</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                No payment has been recorded yet. Go to the Owner Detail page and use <strong>"Record Payment"</strong> to activate the subscription.
+              </p>
+            </div>
+          </Card>
+        )}
 
         <Card>
           <h3 className="text-lg font-semibold text-text-primary mb-4">Credentials</h3>
@@ -165,7 +243,14 @@ export default function CreateOwner() {
           <Button variant="secondary" onClick={() => navigate('/superadmin/owners')}>
             Go to Owners
           </Button>
-          <Button onClick={() => { setResult(null); setCurrentStep(1); setForm({ ...form, businessName: '', ownerName: '', ownerEmail: '', ownerPhone: '' }); }}>
+          <Button
+            variant="primary"
+            onClick={() => navigate(`/superadmin/owner/${result.tenant._id || result.tenant.id}`)}
+            icon={ArrowRight}
+          >
+            View Owner Detail
+          </Button>
+          <Button variant="ghost" onClick={() => { setResult(null); setCurrentStep(1); setForm({ ...form, businessName: '', ownerName: '', ownerEmail: '', ownerPhone: '' }); }}>
             Create Another
           </Button>
         </div>
@@ -242,37 +327,136 @@ export default function CreateOwner() {
         )}
 
         {currentStep === 3 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-text-primary">Subscription Plan</h2>
-            <p className="text-sm text-text-muted">Choose a plan and billing cycle.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {plans.map((plan) => (
-                <button
-                  key={plan._id}
-                  onClick={() => updateForm('planKey', plan.key)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    form.planKey === plan.key
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-border hover:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-text-primary">{plan.name}</p>
-                    {plan.badge && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400">
-                        {plan.badge}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-text-muted mt-1">${plan.prices?.monthly || 0}/mo</p>
-                  <p className="text-xs text-text-muted mt-1">{plan.limits?.resources || 5} resources, {plan.limits?.staff || 2} staff</p>
-                </button>
-              ))}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">Subscription Type</h2>
+              <p className="text-sm text-text-muted mt-1">Choose how this portal will be set up.</p>
             </div>
+
+            {/* Mode toggle cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select label="Billing Cycle" value={form.billingCycle} onChange={(e) => updateForm('billingCycle', e.target.value)} options={[{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'yearly', label: 'Yearly' }]} />
-              <Input label="Trial Days" type="number" value={form.trialDays} onChange={(e) => updateForm('trialDays', parseInt(e.target.value) || 0)} min={0} max={90} />
+              <button
+                onClick={() => setMode('trial')}
+                className={clsx(
+                  'p-5 rounded-xl border-2 text-left transition-all',
+                  form.mode === 'trial'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-500'
+                    : 'border-border hover:border-primary-300 hover:bg-surface-secondary'
+                )}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={clsx(
+                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    form.mode === 'trial'
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600'
+                      : 'bg-surface-tertiary text-text-muted'
+                  )}>
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">Trial</p>
+                    <p className="text-xs text-text-muted">Free trial with expiry</p>
+                  </div>
+                </div>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Portal starts on a free trial. No payment needed upfront. Set how many days the trial lasts.
+                </p>
+              </button>
+
+              <button
+                onClick={() => setMode('subscription')}
+                className={clsx(
+                  'p-5 rounded-xl border-2 text-left transition-all',
+                  form.mode === 'subscription'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-500'
+                    : 'border-border hover:border-primary-300 hover:bg-surface-secondary'
+                )}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={clsx(
+                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    form.mode === 'subscription'
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600'
+                      : 'bg-surface-tertiary text-text-muted'
+                  )}>
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">Subscription</p>
+                    <p className="text-xs text-text-muted">Direct paid plan</p>
+                  </div>
+                </div>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Portal starts directly on a paid plan. You'll record the first payment after creation to activate the subscription period.
+                </p>
+              </button>
             </div>
+
+            {/* Mode-specific inputs */}
+            {form.mode === 'trial' && (
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-semibold text-text-primary">Trial Settings</h3>
+                <div className="max-w-xs">
+                  <Input
+                    label="Trial Duration (days)"
+                    type="number"
+                    value={form.trialDays}
+                    onChange={(e) => updateForm('trialDays', parseInt(e.target.value) || 0)}
+                    min={1}
+                    max={90}
+                  />
+                  <p className="text-xs text-text-muted">
+                    How many days the free trial will last. After expiry, you can record a payment to convert to a paid plan.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {form.mode === 'subscription' && (
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-semibold text-text-primary">Choose a Plan</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {plans.map((plan) => (
+                    <button
+                      key={plan._id}
+                      onClick={() => updateForm('planKey', plan.key)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        form.planKey === plan.key
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-border hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-text-primary">{plan.name}</p>
+                        {plan.badge && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400">
+                            {plan.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-text-muted mt-1">${plan.prices?.monthly || 0}/mo</p>
+                      <p className="text-xs text-text-muted mt-1">{plan.limits?.resources || 5} resources, {plan.limits?.staff || 2} staff</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="max-w-xs pt-2">
+                  <Select
+                    label="Billing Cycle"
+                    value={form.billingCycle}
+                    onChange={(e) => updateForm('billingCycle', e.target.value)}
+                    options={[
+                      { value: 'monthly', label: 'Monthly' },
+                      { value: 'quarterly', label: 'Quarterly' },
+                      { value: 'yearly', label: 'Yearly' }
+                    ]}
+                  />
+                  <p className="text-xs text-text-muted">
+                    The billing frequency for this subscription. This can be changed when recording the first payment.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -297,15 +481,66 @@ export default function CreateOwner() {
                 <p className="text-xs text-text-muted">Phone</p>
                 <p className="text-sm font-medium text-text-primary">{form.ownerPhone}</p>
               </div>
-              <div>
-                <p className="text-xs text-text-muted">Plan</p>
-                <p className="text-sm font-medium text-text-primary capitalize">{form.planKey} · {form.billingCycle}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">Trial</p>
-                <p className="text-sm font-medium text-text-primary">{form.trialDays} days</p>
-              </div>
+
+              {form.mode === 'trial' ? (
+                <>
+                  <div>
+                    <p className="text-xs text-text-muted">Type</p>
+                    <p className="text-sm font-medium text-text-primary">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" /> Trial
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-muted">Trial Duration</p>
+                    <p className="text-sm font-medium text-text-primary">{form.trialDays} days</p>
+                  </div>
+                  {form.trialDays > 0 && (
+                    <div className="sm:col-span-2">
+                      <p className="text-xs text-text-muted">Trial Ends</p>
+                      <p className="text-sm font-medium text-text-primary">
+                        {new Date(Date.now() + form.trialDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+                          month: 'long', day: 'numeric', year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs text-text-muted">Type</p>
+                    <p className="text-sm font-medium text-text-primary">
+                      <span className="inline-flex items-center gap-1">
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-500" /> Subscription
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-muted">Plan</p>
+                    <p className="text-sm font-medium text-text-primary capitalize">{form.planKey}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-muted">Billing Cycle</p>
+                    <p className="text-sm font-medium text-text-primary capitalize">{form.billingCycle}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-muted">Price</p>
+                    <p className="text-sm font-medium text-text-primary">${selectedPlan?.prices?.[form.billingCycle] || 0}/{form.billingCycle === 'yearly' ? 'yr' : form.billingCycle === 'quarterly' ? 'qtr' : 'mo'}</p>
+                  </div>
+                </>
+              )}
             </div>
+
+            {form.mode === 'subscription' && (
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+                  After creation, go to the Owner Detail page to record the first payment and activate the subscription period.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
