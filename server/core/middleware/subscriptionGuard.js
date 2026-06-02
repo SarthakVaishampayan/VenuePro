@@ -79,6 +79,16 @@ export const subscriptionGuard = async (req, res, next) => {
       });
     }
 
+    // Safety net: if status is 'trialing' but trialEndDate has passed,
+    // treat the subscription as expired even if the cron hasn't run yet
+    if (subscription.status === 'trialing' && subscription.trialEndDate && new Date() > subscription.trialEndDate) {
+      return errorResponse(res, {
+        statusCode: 402,
+        message: 'Trial period has ended. Please contact support to renew your subscription.',
+        code: 'TRIAL_EXPIRED'
+      });
+    }
+
     const access = STATUS_ACCESS[subscription.status];
 
     if (!access) {

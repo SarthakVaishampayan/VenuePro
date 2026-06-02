@@ -60,8 +60,14 @@ export const login = async (req, res, next) => {
       return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
 
-    // Fetch tenant to get business type info
+    // Fetch tenant to check status and get business type info
     const tenant = await Tenant.findById(owner.tenantId).populate('businessTypeId');
+    if (!tenant) {
+      return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+    }
+    if (!tenant.isActive || tenant.portalStatus !== 'active') {
+      return error(res, { statusCode: 403, message: 'Tenant access has been suspended. Please contact support.', code: 'TENANT_SUSPENDED' });
+    }
     const businessType = tenant?.businessTypeId?.key || 'pool_snooker';
     const businessName = tenant?.businessName || '';
     const isDemo = tenant?.isDemo || false;

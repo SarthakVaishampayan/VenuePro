@@ -7,7 +7,7 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { PageLoader } from '../../components/common/Loader';
 import { StatusBadge } from '../../components/common/Badge';
-import { Save, Building2, Clock, Moon, Sliders, CreditCard, DollarSign, FileText, Calendar, Download } from 'lucide-react';
+import { Save, Building2, Clock, Moon, Sliders, CreditCard, DollarSign, FileText, Calendar, Download, Sparkles } from 'lucide-react';
 
 export default function Settings() {
   const { user } = useOwnerAuth();
@@ -229,40 +229,87 @@ export default function Settings() {
               <Card>
                 <CardHeader title="Current Subscription" />
                 {billing.subscription ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs text-text-muted">Plan</p>
-                      <p className="text-sm font-medium text-text-primary capitalize">{billing.subscription.planSnapshot?.key || '—'}</p>
+                  <>
+                    {billing.subscription.status === 'trialing' && (
+                      <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+                            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">
+                              You're on a free trial!
+                            </p>
+                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+                              {(() => {
+                                const endDate = billing.subscription.trialEndDate || billing.subscription.currentPeriodEnd;
+                                if (endDate) {
+                                  const days = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                  if (days <= 0) return 'Your trial has ended. Upgrade to continue using all features.';
+                                  return `You have ${days} day${days === 1 ? '' : 's'} remaining. Upgrade anytime to keep uninterrupted access.`;
+                                }
+                                return 'Upgrade to a paid plan to unlock all features.';
+                              })()}
+                            </p>
+                            <button
+                              className="mt-2 px-4 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                              onClick={() => alert('To upgrade: Contact your venue super admin to convert your trial to a paid plan and record your first payment.')}
+                            >
+                              Contact Admin to Upgrade
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-text-muted">{billing.subscription.status === 'trialing' ? 'Trial Plan' : 'Plan'}</p>
+                        <p className="text-sm font-medium text-text-primary capitalize">{billing.subscription.planSnapshot?.key || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Status</p>
+                        <StatusBadge status={billing.subscription.status} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">{billing.subscription.status === 'trialing' ? 'Trial Ends' : 'Billing Cycle'}</p>
+                        {billing.subscription.status === 'trialing' ? (
+                          <p className="text-sm font-medium text-text-primary">
+                            {billing.subscription.trialEndDate ? new Date(billing.subscription.trialEndDate).toLocaleDateString() : (billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : '—')}
+                          </p>
+                        ) : (
+                          <p className="text-sm font-medium text-text-primary capitalize">{billing.subscription.billingCycle || '—'}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">{billing.subscription.status === 'trialing' ? 'Days Remaining' : 'Amount'}</p>
+                        {billing.subscription.status === 'trialing' ? (() => {
+                          const endDate = billing.subscription.trialEndDate || billing.subscription.currentPeriodEnd;
+                          if (!endDate) return <p className="text-sm text-text-primary">—</p>;
+                          const days = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                          const color = days <= 3 ? 'text-red-600' : days <= 15 ? 'text-amber-600' : 'text-emerald-600';
+                          return <p className={`text-sm font-bold ${color}`}>{days <= 0 ? 'Expired' : `${days} days`}</p>;
+                        })() : (
+                          <p className="text-sm font-medium text-text-primary">₹{(billing.subscription.amount || 0).toLocaleString()}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Period Start</p>
+                        <p className="text-sm text-text-primary">{billing.subscription.currentPeriodStart ? new Date(billing.subscription.currentPeriodStart).toLocaleDateString() : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Period End</p>
+                        <p className="text-sm text-text-primary">{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Total Paid</p>
+                        <p className="text-sm font-medium text-text-primary">₹{(billing.subscription.totalPaid || 0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Last Payment</p>
+                        <p className="text-sm text-text-primary">{billing.subscription.lastPaymentDate ? new Date(billing.subscription.lastPaymentDate).toLocaleDateString() : '—'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Status</p>
-                      <StatusBadge status={billing.subscription.status} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Billing Cycle</p>
-                      <p className="text-sm font-medium text-text-primary capitalize">{billing.subscription.billingCycle || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Amount</p>
-                      <p className="text-sm font-medium text-text-primary">₹{(billing.subscription.amount || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Period Start</p>
-                      <p className="text-sm text-text-primary">{billing.subscription.currentPeriodStart ? new Date(billing.subscription.currentPeriodStart).toLocaleDateString() : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Period End</p>
-                      <p className="text-sm text-text-primary">{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Total Paid</p>
-                      <p className="text-sm font-medium text-text-primary">₹{(billing.subscription.totalPaid || 0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Last Payment</p>
-                      <p className="text-sm text-text-primary">{billing.subscription.lastPaymentDate ? new Date(billing.subscription.lastPaymentDate).toLocaleDateString() : '—'}</p>
-                    </div>
-                  </div>
+                  </>
                 ) : (
                   <p className="text-sm text-text-muted">No active subscription. Contact support to set up billing.</p>
                 )}

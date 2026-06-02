@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Mail, Phone, Calendar, CreditCard,
-  DollarSign, AlertTriangle, RefreshCw, Copy, Check, ShieldOff, ShieldCheck
+  DollarSign, AlertTriangle, RefreshCw, Copy, Check, ShieldOff, ShieldCheck, Trash2
 } from 'lucide-react';
 import api from '../../services/api';
 import { Card, CardHeader, StatCard } from '../../components/common/Card';
@@ -22,6 +22,7 @@ export default function OwnerDetail() {
   const [copied, setCopied] = useState(false);
   const [suspendModal, setSuspendModal] = useState({ open: false, loading: false, reason: '', error: null });
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ open: false, loading: false, error: null });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,6 +74,17 @@ export default function OwnerDetail() {
       setStats(statsRes.data.data);
     } catch (err) {
       setSuspendModal(prev => ({ ...prev, loading: false, error: err.response?.data?.message || 'Failed to suspend tenant' }));
+    }
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    setDeleteModal(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      await api.delete(`/tenants/${id}`);
+      navigate('/superadmin/owners');
+    } catch (err) {
+      setDeleteModal(prev => ({ ...prev, loading: false, error: err.response?.data?.message || 'Failed to delete tenant' }));
     }
   };
 
@@ -191,34 +203,85 @@ export default function OwnerDetail() {
         <Card>
           <CardHeader title="Subscription Details" />
           <div className="space-y-3">
-            <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-text-muted">Plan</span>
-              <span className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-text-muted">Billing Cycle</span>
-              <span className="text-sm font-medium text-text-primary capitalize">{sub?.billingCycle || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-text-muted">Amount</span>
-              <span className="text-sm font-medium text-text-primary">{currency}{sub?.amount || 0}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-text-muted">Start Date</span>
-              <span className="text-sm font-medium text-text-primary">
-                {sub?.currentPeriodStart ? new Date(sub.currentPeriodStart).toLocaleDateString() : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-border">
-              <span className="text-sm text-text-muted">End Date</span>
-              <span className="text-sm font-medium text-text-primary">
-                {sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between py-2">
-              <span className="text-sm text-text-muted">Invoices</span>
-              <span className="text-sm font-medium text-text-primary">{stats?.invoices?.total || 0} ({stats?.invoices?.paid || 0} paid)</span>
-            </div>
+            {sub?.status === 'trialing' ? (
+              <>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Plan</span>
+                  <span className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Status</span>
+                  <StatusBadge status="trialing" />
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Trial Started</span>
+                  <span className="text-sm font-medium text-text-primary">
+                    {sub?.trialStartDate ? new Date(sub.trialStartDate).toLocaleDateString() : (sub?.currentPeriodStart ? new Date(sub.currentPeriodStart).toLocaleDateString() : '—')}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Trial Ends</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-text-primary">
+                      {sub?.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : (sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : '—')}
+                    </span>
+                    {(() => {
+                      const endDate = sub?.trialEndDate || sub?.currentPeriodEnd;
+                      if (endDate) {
+                        const daysLeft = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            daysLeft <= 3
+                              ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                              : daysLeft <= 15
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                          }`}>
+                            {daysLeft <= 0 ? 'Expired' : `${daysLeft}d left`}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-sm text-text-muted">Invoices</span>
+                  <span className="text-sm font-medium text-text-primary">{stats?.invoices?.total || 0} ({stats?.invoices?.paid || 0} paid)</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Plan</span>
+                  <span className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Billing Cycle</span>
+                  <span className="text-sm font-medium text-text-primary capitalize">{sub?.billingCycle || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Amount</span>
+                  <span className="text-sm font-medium text-text-primary">{currency}{sub?.amount || 0}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">Start Date</span>
+                  <span className="text-sm font-medium text-text-primary">
+                    {sub?.currentPeriodStart ? new Date(sub.currentPeriodStart).toLocaleDateString() : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-sm text-text-muted">End Date</span>
+                  <span className="text-sm font-medium text-text-primary">
+                    {sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-sm text-text-muted">Invoices</span>
+                  <span className="text-sm font-medium text-text-primary">{stats?.invoices?.total || 0} ({stats?.invoices?.paid || 0} paid)</span>
+                </div>
+              </>
+            )}
           </div>
         </Card>
       </div>
@@ -228,6 +291,11 @@ export default function OwnerDetail() {
         <CardHeader title="Actions" />
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" icon={RefreshCw} onClick={handleResetPassword} loading={resetModal.loading && resetModal.open}>Reset Password</Button>
+          {sub?.status === 'trialing' && (
+            <Button variant="primary" icon={CreditCard} onClick={() => setPaymentModalOpen(true)}>
+              Convert to Paid Plan
+            </Button>
+          )}
           {tenant.portalStatus === 'suspended' ? (
             <Button variant="secondary" icon={ShieldCheck} onClick={() => setSuspendModal({ open: true, loading: false, reason: '', error: null })}>
               Unsuspend Tenant
@@ -237,7 +305,12 @@ export default function OwnerDetail() {
               Suspend Tenant
             </Button>
           )}
-          <Button variant="secondary" icon={DollarSign} onClick={() => setPaymentModalOpen(true)}>Record Payment</Button>
+          {sub?.status !== 'trialing' && (
+            <Button variant="secondary" icon={DollarSign} onClick={() => setPaymentModalOpen(true)}>Record Payment</Button>
+          )}
+          <Button variant="danger" icon={Trash2} onClick={() => setDeleteModal({ open: true, loading: false, error: null })}>
+            Permanently Delete Tenant
+          </Button>
         </div>
       </Card>
 
@@ -315,6 +388,54 @@ export default function OwnerDetail() {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Delete Tenant Modal */}
+      <Modal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, loading: false, error: null })}
+        title="Permanently Delete Tenant"
+        size="md"
+      >
+        <div className="space-y-4 py-2">
+          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+                  ⚠️ This action is irreversible!
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  This will permanently delete <strong>{tenant?.businessName}</strong> and all associated data:
+                </p>
+                <ul className="mt-2 text-sm text-red-700 dark:text-red-400 list-disc list-inside space-y-1">
+                  <li>All business information and settings</li>
+                  <li>Owner login account (email will be freed up)</li>
+                  <li>All player/customer records</li>
+                  <li>All sessions, payments, dues, and expenses</li>
+                  <li>Invoice history and subscription records</li>
+                  <li>Staff accounts and shift data</li>
+                </ul>
+                <p className="mt-2 text-sm font-medium text-red-800 dark:text-red-300">
+                  There is no undo. Consider suspending instead if you might need this data later.
+                </p>
+              </div>
+            </div>
+          </div>
+          {deleteModal.error && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200">
+              <p className="text-sm text-red-700 dark:text-red-400">{deleteModal.error}</p>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setDeleteModal({ open: false, loading: false, error: null })}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleteModal.loading} icon={Trash2}>
+              {deleteModal.loading ? 'Deleting...' : 'Yes, Permanently Delete'}
+            </Button>
+          </div>
         </div>
       </Modal>
 

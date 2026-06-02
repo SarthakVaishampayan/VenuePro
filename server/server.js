@@ -361,6 +361,14 @@ const startServer = async () => {
   } catch (err) {
     logger.warn(`Demo cleanup cron not started: ${err.message}`);
   }
+
+  // Start trial expiry cron — auto-transition expired trials to overdue
+  try {
+    const { startTrialExpiryCheck } = await import('./jobs/trialExpiry.js');
+    startTrialExpiryCheck();
+  } catch (err) {
+    logger.warn(`Trial expiry cron not started: ${err.message}`);
+  }
   
     // Register event subscribers for notification dispatch
   try {

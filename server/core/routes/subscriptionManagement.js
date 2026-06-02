@@ -290,18 +290,15 @@ router.get('/:id', superAdminAuth, async (req, res, next) => {
 // ============================================================
 
 router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema), async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { tenantId, planId, billingCycle, amount, paymentMode, paymentReference, notes, extendPeriod } = req.body;
 
     // Find or create subscription for this tenant
-    let subscription = await TenantSubscription.findOne({ tenantId }).sort({ createdAt: -1 }).session(session);
+    let subscription = await TenantSubscription.findOne({ tenantId }).sort({ createdAt: -1 });
 
     if (!subscription) {
       // Get tenant info for default plan
-      const tenant = await Tenant.findById(tenantId).session(session);
+      const tenant = await Tenant.findById(tenantId);
       if (!tenant) {
         return errorResponse(res, { statusCode: 404, message: 'Tenant not found.', code: 'NOT_FOUND' });
       }
@@ -309,9 +306,9 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       // Find the plan to use
       let plan = null;
       if (planId) {
-        plan = await SubscriptionPlan.findById(planId).session(session);
+        plan = await SubscriptionPlan.findById(planId);
       } else {
-        plan = await SubscriptionPlan.findOne({ key: 'starter' }).session(session);
+        plan = await SubscriptionPlan.findOne({ key: 'starter' });
       }
 
       if (!plan) {
@@ -324,7 +321,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       const periodEnd = new Date(now);
       periodEnd.setMonth(periodEnd.getMonth() + cycleMonths);
 
-      subscription = await TenantSubscription.create([{
+      subscription = await TenantSubscription.create({
         tenantId,
         planId: plan._id,
         planSnapshot: {
@@ -343,9 +340,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
         lastPaymentAmount: amount,
         paymentCount: 1,
         gracePeriodDays: 7
-      }], { session });
-
-      subscription = subscription[0];
+      });
     } else {
       // Update existing subscription
       const updateFields = {
@@ -365,7 +360,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
 
       // If a plan was selected, update it
       if (planId) {
-        const plan = await SubscriptionPlan.findById(planId).session(session);
+        const plan = await SubscriptionPlan.findById(planId);
         if (plan) {
           updateFields.planId = plan._id;
           updateFields.planSnapshot = {
@@ -396,13 +391,25 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       subscription = await TenantSubscription.findByIdAndUpdate(
         subscription._id,
         { $set: updateFields },
-        { new: true, session }
+        { new: true }
       );
     }
 
-    // Generate invoice
+    // Generate invoice with auto invoice number
     const planName = subscription.planSnapshot?.name || 'Subscription';
-    const invoice = await SubscriptionInvoice.create([{
+    const year = new Date().getFullYear();
+    const lastInvoice = await SubscriptionInvoice.findOne({
+      invoiceNumber: new RegExp(`^VENUEPRO-${year}-`)
+    }).sort({ invoiceNumber: -1 }).lean();
+    let seq = 1;
+    if (lastInvoice?.invoiceNumber) {
+      const lastSeq = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    const invoiceNumber = `VENUEPRO-${year}-${String(seq).padStart(6, '0')}`;
+
+    const invoice = await SubscriptionInvoice.create({
+      invoiceNumber,
       tenantId,
       tenantSubscriptionId: subscription._id,
       billingPeriodStart: subscription.currentPeriodStart || new Date(),
@@ -426,7 +433,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       paidAmount: amount,
       notes: notes || null,
       generatedBy: req.user.id
-    }], { session });
+    });
 
     // Also update tenant's subscription info
     await Tenant.findByIdAndUpdate(tenantId, {
@@ -437,23 +444,18 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
         'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
         'subscription.billingCycle': billingCycle
       }
-    }, { session });
-
-    await session.commitTransaction();
+    });
 
     return successResponse(res, {
       statusCode: 201,
       message: 'Payment recorded successfully',
       data: {
         subscription,
-        invoice: invoice[0]
+        invoice
       }
     });
   } catch (err) {
-    await session.abortTransaction();
     next(err);
-  } finally {
-    session.endSession();
   }
 });
 
@@ -602,7 +604,20 @@ router.post('/:id/generate-invoice', superAdminAuth, async (req, res, next) => {
     const periodEnd = new Date(periodStart);
     periodEnd.setMonth(periodEnd.getMonth() + cycleMonths);
 
+    // Generate invoice with auto invoice number
+    const year = new Date().getFullYear();
+    const lastInvoice = await SubscriptionInvoice.findOne({
+      invoiceNumber: new RegExp(`^VENUEPRO-${year}-`)
+    }).sort({ invoiceNumber: -1 }).lean();
+    let seq = 1;
+    if (lastInvoice?.invoiceNumber) {
+      const lastSeq = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    const invoiceNumber = `VENUEPRO-${year}-${String(seq).padStart(6, '0')}`;
+
     const invoice = await SubscriptionInvoice.create({
+      invoiceNumber,
       tenantId: subscription.tenantId,
       tenantSubscriptionId: subscription._id,
       billingPeriodStart: periodStart,

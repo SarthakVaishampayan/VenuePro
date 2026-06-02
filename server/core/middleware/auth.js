@@ -2,6 +2,8 @@ import { verifyAccessToken, isTokenBlacklisted } from '../utils/jwtHelper.js';
 import { error as errorResponse } from '../utils/responseHelper.js';
 import SuperAdmin from '../models/SuperAdmin.js';
 import Tenant from '../models/Tenant.js';
+import OwnerUser from '../../modules/pool-snooker/models/OwnerUser.js';
+import StaffUser from '../../modules/pool-snooker/models/StaffUser.js';
 
 // ============================================================
 // EXTRACT TOKEN FROM REQUEST
@@ -156,6 +158,31 @@ export const tenantAuth = async (req, res, next) => {
           code: 'TENANT_SUSPENDED'
         });
       }
+
+      // Also verify the specific user (OwnerUser/StaffUser) still exists and is active
+      let userRecord = null;
+      if (req.user.role === 'owner_admin') {
+        userRecord = await OwnerUser.findById(req.user.id).select('isActive');
+      } else if (req.user.role === 'staff') {
+        userRecord = await StaffUser.findById(req.user.id).select('isActive');
+      }
+
+      if (!userRecord) {
+        return errorResponse(res, {
+          statusCode: 401,
+          message: 'User account no longer exists.',
+          code: 'USER_DELETED'
+        });
+      }
+
+      if (!userRecord.isActive) {
+        return errorResponse(res, {
+          statusCode: 403,
+          message: 'User account has been deactivated.',
+          code: 'USER_DEACTIVATED'
+        });
+      }
+
       next();
     } catch (err) {
       next(err);
@@ -192,6 +219,29 @@ export const staffAuth = async (req, res, next) => {
           code: 'TENANT_DEACTIVATED'
         });
       }
+
+      // Also verify the specific user still exists and is active
+      let userRecord = null;
+      if (req.user.role === 'staff') {
+        userRecord = await StaffUser.findById(req.user.id).select('isActive');
+      } else if (req.user.role === 'owner_admin') {
+        userRecord = await OwnerUser.findById(req.user.id).select('isActive');
+      }
+      if (!userRecord) {
+        return errorResponse(res, {
+          statusCode: 401,
+          message: 'User account no longer exists.',
+          code: 'USER_DELETED'
+        });
+      }
+      if (!userRecord.isActive) {
+        return errorResponse(res, {
+          statusCode: 403,
+          message: 'User account has been deactivated.',
+          code: 'USER_DEACTIVATED'
+        });
+      }
+
       next();
     } catch (err) {
       next(err);

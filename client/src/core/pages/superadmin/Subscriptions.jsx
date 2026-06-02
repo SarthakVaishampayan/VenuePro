@@ -29,6 +29,62 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
+/** Calculate days remaining until next billing (positive = remaining, negative = overdue) */
+function getDaysInfo(sub) {
+  if (!sub.currentPeriodEnd) return null;
+  const now = new Date();
+  const end = new Date(sub.currentPeriodEnd);
+  const diffMs = end.getTime() - now.getTime();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return days;
+}
+
+/** Colored badge showing days remaining or overdue */
+function DaysBadge({ days, status }) {
+  if (days === null || days === undefined) return <span className="text-sm text-text-muted">—</span>;
+
+  // Expired/cancelled/suspended — show status, not days
+  if (['expired', 'cancelled', 'suspended'].includes(status)) {
+    return <span className="text-sm text-text-muted">—</span>;
+  }
+
+  if (days <= 0) {
+    // Overdue
+    const overdueDays = Math.abs(days);
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 ring-1 ring-inset ring-red-600/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        {overdueDays === 0 ? 'Due today' : `${overdueDays}d overdue`}
+      </span>
+    );
+  }
+
+  if (days <= 3) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 ring-1 ring-inset ring-red-600/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        {days}d remaining
+      </span>
+    );
+  }
+
+  if (days <= 15) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 ring-1 ring-inset ring-amber-600/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        {days}d remaining
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 ring-1 ring-inset ring-emerald-600/20">
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {days}d remaining
+    </span>
+  );
+}
+
 export default function Subscriptions() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
@@ -40,6 +96,7 @@ export default function Subscriptions() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentTenantId, setPaymentTenantId] = useState(null);
   const [statusModal, setStatusModal] = useState({ open: false, sub: null });
   const [statusForm, setStatusForm] = useState({ status: '', reason: '' });
   const [statusSaving, setStatusSaving] = useState(false);
@@ -171,11 +228,19 @@ export default function Subscriptions() {
     {
       key: 'currentPeriodEnd',
       label: 'Next Billing',
-      render: (row) => (
-        <span className="text-sm text-text-muted">
-          {row.currentPeriodEnd ? new Date(row.currentPeriodEnd).toLocaleDateString() : '—'}
-        </span>
-      )
+      render: (row) => {
+        const days = getDaysInfo(row);
+        return (
+          <div className="flex flex-col gap-0.5">
+            <DaysBadge days={days} status={row.status} />
+            {row.currentPeriodEnd && (
+              <span className="text-[10px] text-text-muted">
+                {new Date(row.currentPeriodEnd).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'paymentCount',
@@ -371,8 +436,9 @@ export default function Subscriptions() {
       {/* Record Payment Modal */}
       <RecordPaymentModal
         open={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSuccess={() => { handleRefresh(); }}
+        onClose={() => { setShowPaymentModal(false); setPaymentTenantId(null); }}
+        onSuccess={() => { setPaymentTenantId(null); handleRefresh(); }}
+        tenantId={paymentTenantId}
       />
 
       {/* Change Status Modal */}
@@ -442,12 +508,26 @@ export default function Subscriptions() {
                 <StatusBadge status={detailModal.detail.status} />
               </div>
               <div>
-                <p className="text-xs text-text-muted">Amount</p>
-                <p className="text-sm font-medium text-text-primary">₹{(detailModal.detail.amount || 0).toLocaleString()}/{detailModal.detail.billingCycle || 'mo'}</p>
+                <p className="text-xs text-text-muted">{detailModal.detail.status === 'trialing' ? 'Trial Expires' : 'Amount'}</p>
+                {detailModal.detail.status === 'trialing' ? (
+                  <p className="text-sm font-medium text-text-primary">
+                    {detailModal.detail.trialEndDate ? new Date(detailModal.detail.trialEndDate).toLocaleDateString() : (detailModal.detail.currentPeriodEnd ? new Date(detailModal.detail.currentPeriodEnd).toLocaleDateString() : '—')}
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-text-primary">₹{(detailModal.detail.amount || 0).toLocaleString()}/{detailModal.detail.billingCycle || 'mo'}</p>
+                )}
               </div>
               <div>
-                <p className="text-xs text-text-muted">Payments</p>
-                <p className="text-sm font-medium text-text-primary">{detailModal.detail.paymentCount || 0} (₹{(detailModal.detail.totalPaid || 0).toLocaleString()})</p>
+                <p className="text-xs text-text-muted">{detailModal.detail.status === 'trialing' ? 'Days Left' : 'Payments'}</p>
+                {detailModal.detail.status === 'trialing' ? (() => {
+                  const endDate = detailModal.detail.trialEndDate || detailModal.detail.currentPeriodEnd;
+                  if (!endDate) return <p className="text-sm text-text-primary">—</p>;
+                  const days = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
+                  const color = days <= 3 ? 'text-red-600' : days <= 15 ? 'text-amber-600' : 'text-emerald-600';
+                  return <p className={`text-sm font-bold ${color}`}>{days <= 0 ? 'Expired' : `${days} days`}</p>;
+                })() : (
+                  <p className="text-sm font-medium text-text-primary">{detailModal.detail.paymentCount || 0} (₹{(detailModal.detail.totalPaid || 0).toLocaleString()})</p>
+                )}
               </div>
             </div>
 
@@ -459,7 +539,12 @@ export default function Subscriptions() {
               </div>
               <div>
                 <p className="text-xs text-text-muted">Current Period End</p>
-                <p className="text-sm text-text-primary">{detailModal.detail.currentPeriodEnd ? new Date(detailModal.detail.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-text-primary">{detailModal.detail.currentPeriodEnd ? new Date(detailModal.detail.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+                  {detailModal.detail.currentPeriodEnd && (
+                    <DaysBadge days={getDaysInfo(detailModal.detail)} status={detailModal.detail.status} />
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-xs text-text-muted">Last Payment Date</p>
@@ -528,6 +613,18 @@ export default function Subscriptions() {
               >
                 Change Status
               </Button>
+              {detailModal.detail.status === 'trialing' && (
+                <Button variant="primary" icon={DollarSign}
+                  onClick={() => {
+                    const tid = detailModal.detail.tenantId?._id || detailModal.detail.tenant?._id;
+                    setPaymentTenantId(tid);
+                    setDetailModal({ open: false, sub: null, loading: false, detail: null });
+                    setShowPaymentModal(true);
+                  }}
+                >
+                  Record Payment (Convert Trial)
+                </Button>
+              )}
               {(detailModal.detail.status === 'overdue' || detailModal.detail.status === 'suspended') && (
                 <Button variant="secondary" icon={RotateCcw}
                   onClick={async () => {

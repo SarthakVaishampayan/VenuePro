@@ -401,26 +401,24 @@ router.post('/:id/convert', superAdminAuth, validateObjectId('id'), validateBody
       subscription.discountReason = req.body.discountReason || `Early conversion discount (${req.body.discountPercent}%)`;
     }
 
-    await subscription.save();
+    // Generate invoice number (global sequential, not per-tenant)
+    const year = now.getFullYear();
+    const lastInvoice = await SubscriptionInvoice.findOne({
+      invoiceNumber: new RegExp(`^VENUEPRO-${year}-`)
+    }).sort({ invoiceNumber: -1 }).lean();
+    let seq = 1;
+    if (lastInvoice?.invoiceNumber) {
+      const lastSeq = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    const invoiceNumber = `VENUEPRO-${year}-${String(seq).padStart(6, '0')}`;
 
-    // Update tenant limits and subscription info
-    await Tenant.findByIdAndUpdate(subscription.tenantId, {
-      'subscription.status': 'active',
-      'subscription.trialEndsAt': now,
-      'subscription.currentPeriodStart': now,
-      'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
-      'subscription.billingCycle': billingCycle,
-      maxBranches: plan.limits.branches || 1,
-      maxResources: plan.limits.resources || 5,
-      maxStaff: plan.limits.staff || 2
-    });
-
-    // Generate invoice
-    const invoiceCount = await SubscriptionInvoice.countDocuments({ tenantId: subscription.tenantId });
+    // Create invoice FIRST before updating subscription
+    // This way if invoice creation fails, subscription stays in trialing status
     const invoice = await SubscriptionInvoice.create({
+      invoiceNumber,
       tenantId: subscription.tenantId,
       tenantSubscriptionId: subscription._id,
-      invoiceNumber: `VENUEPRO-${now.getFullYear()}-${String(invoiceCount + 1).padStart(6, '0')}`,
       billingPeriodStart: now,
       billingPeriodEnd: subscription.currentPeriodEnd,
       billingCycle,
@@ -440,6 +438,19 @@ router.post('/:id/convert', superAdminAuth, validateObjectId('id'), validateBody
         : price,
       paymentStatus: 'pending',
       generatedBy: req.user.id
+    });
+
+    // NOW update subscription status (invoice is already created)
+    await subscription.save();
+    await Tenant.findByIdAndUpdate(subscription.tenantId, {
+      'subscription.status': 'active',
+      'subscription.trialEndsAt': now,
+      'subscription.currentPeriodStart': now,
+      'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
+      'subscription.billingCycle': billingCycle,
+      maxBranches: plan.limits.branches || 1,
+      maxResources: plan.limits.resources || 5,
+      maxStaff: plan.limits.staff || 2
     });
 
     // Audit log
