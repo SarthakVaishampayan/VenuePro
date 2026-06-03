@@ -6,14 +6,6 @@ import { success, error, created } from '../../../core/utils/responseHelper.js';
 
 const Payment = mongoose.model('Payment');
 const Due = mongoose.model('Due');
-
-const roundDownTo5Minutes = (date) => {
-  const d = new Date(date);
-  const minutes = d.getMinutes();
-  d.setMinutes(Math.floor(minutes / 5) * 5, 0, 0);
-  return d;
-};
-
 const roundUpTo5Minutes = (date) => {
   const d = new Date(date);
   const minutes = d.getMinutes();
@@ -129,8 +121,7 @@ export const startSession = async (req, res, next) => {
       if (bookedDuration < 15 || bookedDuration > 480) {
         return error(res, { statusCode: 400, message: 'Duration must be between 15 minutes and 8 hours', code: 'INVALID_DURATION' });
       }
-      const roundedNow = roundDownTo5Minutes(now);
-      endTime = new Date(roundedNow.getTime() + bookedDuration * 60000);
+      endTime = new Date(now.getTime() + bookedDuration * 60000);
     }
 
     const session = await BookingSession.create({
@@ -143,7 +134,7 @@ export const startSession = async (req, res, next) => {
       secondaryCustomerId: secondaryCustomerId || null,
       secondaryCustomerNameSnapshot: secondaryCustomerName || null,
       startTime: now,
-      startTimeRounded: roundDownTo5Minutes(now),
+      startTimeRounded: now,
       endTime,
       bookedDuration,
       bookingStatus: 'in_progress',
