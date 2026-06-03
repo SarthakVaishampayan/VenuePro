@@ -29,11 +29,13 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
-/** Calculate days remaining until next billing (positive = remaining, negative = overdue) */
+/** Calculate days remaining (positive = remaining, negative = overdue) */
 function getDaysInfo(sub) {
-  if (!sub.currentPeriodEnd) return null;
+  // For trialing subscriptions, use trialEndDate; otherwise use currentPeriodEnd
+  const endDate = (sub.status === 'trialing' && sub.trialEndDate) ? sub.trialEndDate : sub.currentPeriodEnd;
+  if (!endDate) return null;
   const now = new Date();
-  const end = new Date(sub.currentPeriodEnd);
+  const end = new Date(endDate);
   const diffMs = end.getTime() - now.getTime();
   const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   return days;
@@ -230,12 +232,14 @@ export default function Subscriptions() {
       label: 'Next Billing',
       render: (row) => {
         const days = getDaysInfo(row);
+        // For trials, show trialEndDate; otherwise show currentPeriodEnd
+        const displayDate = (row.status === 'trialing' && row.trialEndDate) ? row.trialEndDate : row.currentPeriodEnd;
         return (
           <div className="flex flex-col gap-0.5">
             <DaysBadge days={days} status={row.status} />
-            {row.currentPeriodEnd && (
+            {displayDate && (
               <span className="text-[10px] text-text-muted">
-                {new Date(row.currentPeriodEnd).toLocaleDateString()}
+                {new Date(displayDate).toLocaleDateString()}
               </span>
             )}
           </div>

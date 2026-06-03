@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 import { logger } from './logger.js';
+import { tenantIsolationPlugin } from '../middleware/tenantIsolationPlugin.js';
+
+// ============================================================
+// Apply tenant isolation plugin globally
+// ============================================================
+// This will attach to ALL Mongoose schemas. The plugin itself
+// checks if the model has a `tenantId` field and skips
+// platform-level models (SuperAdmin, SubscriptionPlan, etc.).
+mongoose.plugin(tenantIsolationPlugin);
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sports_facility_saas';
 

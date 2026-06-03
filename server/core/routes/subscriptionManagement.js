@@ -395,45 +395,80 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       );
     }
 
-    // Generate invoice with auto invoice number
-    const planName = subscription.planSnapshot?.name || 'Subscription';
-    const year = new Date().getFullYear();
-    const lastInvoice = await SubscriptionInvoice.findOne({
-      invoiceNumber: new RegExp(`^VENUEPRO-${year}-`)
-    }).sort({ invoiceNumber: -1 }).lean();
-    let seq = 1;
-    if (lastInvoice?.invoiceNumber) {
-      const lastSeq = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
-      if (!isNaN(lastSeq)) seq = lastSeq + 1;
-    }
-    const invoiceNumber = `VENUEPRO-${year}-${String(seq).padStart(6, '0')}`;
-
-    const invoice = await SubscriptionInvoice.create({
-      invoiceNumber,
-      tenantId,
+    // ============================================================
+    // First, mark any existing pending invoices as paid
+    // This handles the case where trial conversion created a pending
+    // invoice that hasn't been settled yet.
+    // ============================================================
+    const pendingInvoices = await SubscriptionInvoice.find({
+      tenantId: tenantId,
       tenantSubscriptionId: subscription._id,
-      billingPeriodStart: subscription.currentPeriodStart || new Date(),
-      billingPeriodEnd: subscription.currentPeriodEnd || new Date(),
-      billingCycle,
-      planName,
-      lines: [{
-        description: `${planName} — ${billingCycle} subscription`,
-        quantity: 1,
-        unitPrice: amount,
-        amount
-      }],
-      subtotal: amount,
-      discountPercent: 0,
-      discountAmount: 0,
-      totalAmount: amount,
-      paymentStatus: 'paid',
-      paymentMode,
-      paymentReference: paymentReference || null,
-      paidAt: new Date(),
-      paidAmount: amount,
-      notes: notes || null,
-      generatedBy: req.user.id
+      paymentStatus: 'pending'
     });
+
+    let invoice = null;
+
+    if (pendingInvoices.length > 0) {
+      // Mark all pending invoices as paid with this payment's details.
+      // Set paidAmount to each invoice's own totalAmount for accurate records,
+      // since totalPaid on the subscription tracks the aggregate.
+      for (const inv of pendingInvoices) {
+        await SubscriptionInvoice.findByIdAndUpdate(inv._id, {
+          $set: {
+            paymentStatus: 'paid',
+            paymentMode: paymentMode,
+            paymentReference: paymentReference || null,
+            paidAt: new Date(),
+            paidAmount: inv.totalAmount
+          }
+        });
+      }
+    }
+
+    // Only create a new invoice if there were no pending invoices to settle.
+    // If pending invoices existed, the payment cleared them; the subscription
+    // period has already been extended above if requested.
+    if (pendingInvoices.length === 0) {
+      // Generate invoice with auto invoice number
+      const planName = subscription.planSnapshot?.name || 'Subscription';
+      const year = new Date().getFullYear();
+      const lastInvoice = await SubscriptionInvoice.findOne({
+        invoiceNumber: new RegExp(`^VENUEPRO-${year}-`)
+      }).sort({ invoiceNumber: -1 }).lean();
+      let seq = 1;
+      if (lastInvoice?.invoiceNumber) {
+        const lastSeq = parseInt(lastInvoice.invoiceNumber.split('-')[2], 10);
+        if (!isNaN(lastSeq)) seq = lastSeq + 1;
+      }
+      const invoiceNumber = `VENUEPRO-${year}-${String(seq).padStart(6, '0')}`;
+
+      invoice = await SubscriptionInvoice.create({
+        invoiceNumber,
+        tenantId,
+        tenantSubscriptionId: subscription._id,
+        billingPeriodStart: subscription.currentPeriodStart || new Date(),
+        billingPeriodEnd: subscription.currentPeriodEnd || new Date(),
+        billingCycle,
+        planName,
+        lines: [{
+          description: `${planName} — ${billingCycle} subscription`,
+          quantity: 1,
+          unitPrice: amount,
+          amount
+        }],
+        subtotal: amount,
+        discountPercent: 0,
+        discountAmount: 0,
+        totalAmount: amount,
+        paymentStatus: 'paid',
+        paymentMode,
+        paymentReference: paymentReference || null,
+        paidAt: new Date(),
+        paidAmount: amount,
+        notes: notes || null,
+        generatedBy: req.user.id
+      });
+    }
 
     // Also update tenant's subscription info
     await Tenant.findByIdAndUpdate(tenantId, {
