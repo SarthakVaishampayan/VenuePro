@@ -137,6 +137,19 @@ router.get('/dashboard', playerAuth, async (req, res, next) => {
     recentSessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     recentSessions = recentSessions.slice(0, 10);
 
+    // Fix: hide payment status on sessions where the other player owes
+    const playerIdStr = player._id.toString();
+    for (const s of recentSessions) {
+      if (['due', 'pending', 'partial'].includes(s.paymentStatus) && s.payableCustomerId) {
+        const payableIdStr = typeof s.payableCustomerId === 'object'
+          ? s.payableCustomerId.toString()
+          : s.payableCustomerId;
+        if (payableIdStr !== playerIdStr) {
+          s.paymentStatus = undefined;
+        }
+      }
+    }
+
     return successResponse(res, {
       data: {
         stats: {
@@ -230,6 +243,22 @@ router.get('/bookings', playerAuth, async (req, res, next) => {
     // Sort combined results
     allBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     allBookings = allBookings.slice(0, limit);
+
+    // Fix: If a session's paymentStatus is 'due'/'pending'/'partial' but
+    // the payableCustomerId is a different player (e.g., loser in a 2-player match),
+    // don't show the due status for this player — the other player owes, not them
+    const playerIdStr = player._id.toString();
+    for (const session of allBookings) {
+      if (['due', 'pending', 'partial'].includes(session.paymentStatus) && session.payableCustomerId) {
+        const payableIdStr = typeof session.payableCustomerId === 'object'
+          ? session.payableCustomerId.toString()
+          : session.payableCustomerId;
+        if (payableIdStr !== playerIdStr) {
+          // Hide payment status — the other player (loser) owes, not this player
+          session.paymentStatus = undefined;
+        }
+      }
+    }
 
     return successResponse(res, {
       data: allBookings,

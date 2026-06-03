@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Player from '../../../core/models/Player.js';
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
 import { success, error, created } from '../../../core/utils/responseHelper.js';
@@ -37,15 +38,21 @@ export const getAllCustomers = async (req, res, next) => {
     const DueModel = getBusinessModel(req, 'Due');
 
     // Attach pending due amounts scoped to the requesting tenant
+    // Note: aggregation pipelines don't auto-cast ObjectIds like find() does,
+    // so we must cast to ObjectId explicitly for the $match to work.
+    const tenantObjectId = new mongoose.Types.ObjectId(req.tenantId);
+
     const playersWithDues = await Promise.all(players.map(async (player) => {
       const pendingDues = await DueModel.aggregate([
-        { $match: { tenantId: req.tenantId, customerId: player._id, status: { $in: ['pending', 'partial'] } } },
+        { $match: { tenantId: tenantObjectId, customerId: player._id, status: { $in: ['pending', 'partial'] } } },
         { $group: { _id: null, total: { $sum: { $subtract: ['$amount', '$paidAmount'] } } } }
       ]);
       return {
         ...player,
         source: player.tenantId ? 'venue' : 'portal',
-        totalDue: pendingDues[0]?.total || player.totalDue || 0
+        // Only show dues scoped to the requesting tenant, not the global player.totalDue
+        // which accumulates across ALL venues this player has visited
+        totalDue: pendingDues[0]?.total ?? 0
       };
     }));
 

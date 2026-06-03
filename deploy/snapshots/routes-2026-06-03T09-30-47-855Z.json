@@ -1,9 +1,9 @@
 {
   "meta": {
-    "timestamp": "2026-06-03T10:18:21.663Z",
+    "timestamp": "2026-06-03T09:30:47.855Z",
     "tag": "deploy",
     "version": "1.0.0",
-    "totalRoutes": 112
+    "totalRoutes": 130
   },
   "routes": [
     {
@@ -128,14 +128,6 @@
     },
     {
       "method": "POST",
-      "path": "/:id/generate-invoice",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
-    },
-    {
-      "method": "POST",
       "path": "/:id/pay",
       "auth": "public",
       "validation": null,
@@ -152,27 +144,11 @@
     },
     {
       "method": "POST",
-      "path": "/:id/renew",
-      "auth": "superAdminAuth",
-      "validation": "validateBody",
-      "handler": "renewSchema",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
-    },
-    {
-      "method": "POST",
       "path": "/:id/reset-password",
       "auth": "superAdminAuth",
       "validation": "validateObjectId",
       "handler": "tenants",
       "file": "server\\core\\routes\\tenants.js"
-    },
-    {
-      "method": "POST",
-      "path": "/:id/send-reminder",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
     },
     {
       "method": "GET",
@@ -185,10 +161,10 @@
     {
       "method": "PATCH",
       "path": "/:id/status",
-      "auth": "superAdminAuth",
-      "validation": "validateBody",
-      "handler": "statusChangeSchema",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
+      "auth": "public",
+      "validation": null,
+      "handler": "toggleResourceStatus",
+      "file": "server\\modules\\pool-snooker\\routes\\resourceRoutes.js"
     },
     {
       "method": "POST",
@@ -263,6 +239,102 @@
       "file": "server\\server.js"
     },
     {
+      "method": "POST",
+      "path": "/api/platform/auth/auth/signup",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "signupSchema",
+      "file": "server\\core\\routes\\publicAuth.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/auth/business-types",
+      "auth": "public",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\publicAuth.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/platform/auth/change-password",
+      "auth": "playerAuth",
+      "validation": "validateBody",
+      "handler": "changePasswordSchema",
+      "file": "server\\core\\routes\\playerAuth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/forgot-password",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "forgotPasswordSchema",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/login",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "loginSchema",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/logout",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/auth/me",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/platform/auth/profile",
+      "auth": "playerAuth",
+      "validation": "validateBody",
+      "handler": "updateProfileSchema",
+      "file": "server\\core\\routes\\playerAuth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/refresh",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "refreshSchema",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/reset-password/:token",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "resetPasswordSchema",
+      "file": "server\\core\\routes\\auth.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/auth/signup",
+      "auth": "public",
+      "validation": "validateBody",
+      "handler": "signupSchema",
+      "file": "server\\core\\routes\\playerAuth.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/auth/subscription-plans",
+      "auth": "public",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\publicAuth.js"
+    },
+    {
       "method": "ALL",
       "path": "/api/platform/business-types",
       "auth": "public",
@@ -285,6 +357,22 @@
       "validation": null,
       "handler": "platformDashboardRoutes",
       "file": "server\\server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/dashboard/recent-activity",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\dashboard.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/dashboard/stats",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\dashboard.js"
     },
     {
       "method": "ALL",
@@ -311,12 +399,52 @@
       "file": "server\\server.js"
     },
     {
+      "method": "GET",
+      "path": "/api/platform/onboarding/:id",
+      "auth": "superAdminAuth",
+      "validation": "validateObjectId",
+      "handler": "id",
+      "file": "server\\core\\routes\\onboarding.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/platform/onboarding/:id",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "updateOnboardingSchema",
+      "file": "server\\core\\routes\\onboarding.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/onboarding/meta",
+      "auth": "public",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\onboarding.js"
+    },
+    {
       "method": "ALL",
       "path": "/api/platform/revenue",
       "auth": "public",
       "validation": null,
       "handler": "platformRevenueRoutes",
       "file": "server\\server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/revenue",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\revenue.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/revenue/invoices",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\revenue.js"
     },
     {
       "method": "ALL",
@@ -335,12 +463,132 @@
       "file": "server\\server.js"
     },
     {
+      "method": "GET",
+      "path": "/api/platform/subscriptions",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/subscriptions/:id",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/subscriptions/:id/generate-invoice",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/subscriptions/:id/renew",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "renewSchema",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/subscriptions/:id/send-reminder",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/platform/subscriptions/:id/status",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "statusChangeSchema",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/subscriptions/overdue",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/subscriptions/record-payment",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "recordPaymentSchema",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/subscriptions/stats",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\subscriptionManagement.js"
+    },
+    {
       "method": "ALL",
       "path": "/api/platform/support",
       "auth": "public",
       "validation": null,
       "handler": "platformSupportRoutes",
       "file": "server\\server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/support/tickets",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\support.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/support/tickets",
+      "auth": "optionalAuth",
+      "validation": "validateBody",
+      "handler": "tickets",
+      "file": "server\\core\\routes\\support.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/support/tickets/:id",
+      "auth": "superAdminAuth",
+      "validation": "validateObjectId",
+      "handler": "id",
+      "file": "server\\core\\routes\\support.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/platform/support/tickets/:id",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "tickets",
+      "file": "server\\core\\routes\\support.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/platform/support/tickets/:id/messages",
+      "auth": "superAdminAuth",
+      "validation": "validateBody",
+      "handler": "addMessageSchema",
+      "file": "server\\core\\routes\\support.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform/support/tickets/stats",
+      "auth": "superAdminAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\support.js"
     },
     {
       "method": "ALL",
@@ -375,6 +623,62 @@
       "file": "server\\server.js"
     },
     {
+      "method": "GET",
+      "path": "/api/player/bookings",
+      "auth": "playerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/dashboard",
+      "auth": "playerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/dues",
+      "auth": "playerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/player/link-venue",
+      "auth": "playerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/payments",
+      "auth": "playerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/venues",
+      "auth": "optionalPlayerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/player/venues/:tenantId/resources",
+      "auth": "optionalPlayerAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\playerPortal.js"
+    },
+    {
       "method": "ALL",
       "path": "/api/public",
       "auth": "public",
@@ -391,12 +695,52 @@
       "file": "server\\server.js"
     },
     {
+      "method": "POST",
+      "path": "/api/public/demo/reset",
+      "auth": "public",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\demo.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/demo/start",
+      "auth": "public",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\demo.js"
+    },
+    {
       "method": "ALL",
       "path": "/api/tenant/billing",
       "auth": "public",
       "validation": null,
       "handler": "platformTenantBillingRoutes",
       "file": "server\\server.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tenant/billing",
+      "auth": "tenantAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\tenantBilling.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tenant/billing/invoices",
+      "auth": "tenantAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\tenantBilling.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tenant/billing/subscription",
+      "auth": "tenantAuth",
+      "validation": null,
+      "handler": "anonymous",
+      "file": "server\\core\\routes\\tenantBilling.js"
     },
     {
       "method": "ALL",
@@ -463,36 +807,12 @@
       "file": "server\\server.js"
     },
     {
-      "method": "POST",
-      "path": "/auth/signup",
-      "auth": "public",
-      "validation": "validateBody",
-      "handler": "signupSchema",
-      "file": "server\\core\\routes\\publicAuth.js"
-    },
-    {
-      "method": "GET",
-      "path": "/bookings",
-      "auth": "playerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
-    },
-    {
       "method": "PUT",
       "path": "/bulk",
       "auth": "public",
       "validation": null,
       "handler": "bulkUpdateSettings",
       "file": "server\\modules\\pool-snooker\\routes\\settingRoutes.js"
-    },
-    {
-      "method": "GET",
-      "path": "/business-types",
-      "auth": "public",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\publicAuth.js"
     },
     {
       "method": "GET",
@@ -509,14 +829,6 @@
       "validation": null,
       "handler": "changePassword",
       "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
-    },
-    {
-      "method": "PUT",
-      "path": "/change-password",
-      "auth": "playerAuth",
-      "validation": "validateBody",
-      "handler": "changePasswordSchema",
-      "file": "server\\core\\routes\\playerAuth.js"
     },
     {
       "method": "GET",
@@ -545,18 +857,10 @@
     {
       "method": "GET",
       "path": "/dashboard",
-      "auth": "playerAuth",
+      "auth": "public",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
-    },
-    {
-      "method": "GET",
-      "path": "/dues",
-      "auth": "playerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
+      "handler": "getBranchDashboard",
+      "file": "server\\modules\\pool-snooker\\routes\\branchRoutes.js"
     },
     {
       "method": "GET",
@@ -578,57 +882,33 @@
       "method": "POST",
       "path": "/forgot-password",
       "auth": "public",
-      "validation": "validateBody",
-      "handler": "forgotPasswordSchema",
-      "file": "server\\core\\routes\\auth.js"
-    },
-    {
-      "method": "GET",
-      "path": "/invoices",
-      "auth": "superAdminAuth",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\revenue.js"
-    },
-    {
-      "method": "POST",
-      "path": "/link-venue",
-      "auth": "playerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
+      "handler": "forgotPassword",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "POST",
       "path": "/login",
       "auth": "public",
-      "validation": "validateBody",
-      "handler": "loginSchema",
-      "file": "server\\core\\routes\\auth.js"
+      "validation": null,
+      "handler": "login",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "POST",
       "path": "/logout",
-      "auth": "superAdminAuth",
+      "auth": "tenantAuth",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\auth.js"
+      "handler": "logout",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "GET",
       "path": "/me",
-      "auth": "superAdminAuth",
+      "auth": "tenantAuth",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\auth.js"
-    },
-    {
-      "method": "GET",
-      "path": "/meta",
-      "auth": "public",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\onboarding.js"
+      "handler": "getMe",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "POST",
@@ -640,14 +920,6 @@
     },
     {
       "method": "GET",
-      "path": "/overdue",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
-    },
-    {
-      "method": "GET",
       "path": "/payment-split",
       "auth": "public",
       "validation": null,
@@ -656,27 +928,11 @@
     },
     {
       "method": "GET",
-      "path": "/payments",
-      "auth": "playerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
-    },
-    {
-      "method": "GET",
       "path": "/peak-hours",
       "auth": "public",
       "validation": null,
       "handler": "getPeakHours",
       "file": "server\\modules\\pool-snooker\\routes\\analyticsRoutes.js"
-    },
-    {
-      "method": "PATCH",
-      "path": "/profile",
-      "auth": "playerAuth",
-      "validation": "validateBody",
-      "handler": "updateProfileSchema",
-      "file": "server\\core\\routes\\playerAuth.js"
     },
     {
       "method": "GET",
@@ -703,44 +959,20 @@
       "file": "server\\core\\routes\\businessTypes.js"
     },
     {
-      "method": "GET",
-      "path": "/recent-activity",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\dashboard.js"
-    },
-    {
-      "method": "POST",
-      "path": "/record-payment",
-      "auth": "superAdminAuth",
-      "validation": "validateBody",
-      "handler": "recordPaymentSchema",
-      "file": "server\\core\\routes\\subscriptionManagement.js"
-    },
-    {
       "method": "POST",
       "path": "/refresh",
       "auth": "public",
-      "validation": "validateBody",
-      "handler": "refreshSchema",
-      "file": "server\\core\\routes\\auth.js"
-    },
-    {
-      "method": "POST",
-      "path": "/reset",
-      "auth": "public",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\demo.js"
+      "handler": "refresh",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "POST",
       "path": "/reset-password/:token",
       "auth": "public",
-      "validation": "validateBody",
-      "handler": "resetPasswordSchema",
-      "file": "server\\core\\routes\\auth.js"
+      "validation": null,
+      "handler": "resetPassword",
+      "file": "server\\modules\\pool-snooker\\routes\\authRoutes.js"
     },
     {
       "method": "GET",
@@ -784,14 +1016,6 @@
     },
     {
       "method": "POST",
-      "path": "/signup",
-      "auth": "public",
-      "validation": "validateBody",
-      "handler": "signupSchema",
-      "file": "server\\core\\routes\\playerAuth.js"
-    },
-    {
-      "method": "POST",
       "path": "/staff-login",
       "auth": "public",
       "validation": null,
@@ -811,8 +1035,8 @@
       "path": "/start",
       "auth": "public",
       "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\demo.js"
+      "handler": "startSession",
+      "file": "server\\modules\\pool-snooker\\routes\\bookingRoutes.js"
     },
     {
       "method": "GET",
@@ -820,105 +1044,25 @@
       "auth": "superAdminAuth",
       "validation": null,
       "handler": "anonymous",
-      "file": "server\\core\\routes\\dashboard.js"
-    },
-    {
-      "method": "GET",
-      "path": "/subscription",
-      "auth": "tenantAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\tenantBilling.js"
-    },
-    {
-      "method": "GET",
-      "path": "/subscription-plans",
-      "auth": "public",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\publicAuth.js"
-    },
-    {
-      "method": "GET",
-      "path": "/tickets",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "POST",
-      "path": "/tickets",
-      "auth": "optionalAuth",
-      "validation": "validateBody",
-      "handler": "tickets",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "GET",
-      "path": "/tickets/:id",
-      "auth": "superAdminAuth",
-      "validation": "validateObjectId",
-      "handler": "id",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "PATCH",
-      "path": "/tickets/:id",
-      "auth": "superAdminAuth",
-      "validation": "validateBody",
-      "handler": "tickets",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "POST",
-      "path": "/tickets/:id/messages",
-      "auth": "superAdminAuth",
-      "validation": "validateBody",
-      "handler": "addMessageSchema",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "GET",
-      "path": "/tickets/stats",
-      "auth": "superAdminAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\support.js"
-    },
-    {
-      "method": "GET",
-      "path": "/venues",
-      "auth": "optionalPlayerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
-    },
-    {
-      "method": "GET",
-      "path": "/venues/:tenantId/resources",
-      "auth": "optionalPlayerAuth",
-      "validation": null,
-      "handler": "anonymous",
-      "file": "server\\core\\routes\\playerPortal.js"
+      "file": "server\\core\\routes\\trials.js"
     }
   ],
   "summary": {
-    "total": 112,
+    "total": 130,
     "byAuth": {
-      "public": 66,
-      "superAdminAuth": 28,
-      "tenantAuth": 8,
+      "public": 73,
+      "superAdminAuth": 35,
       "playerAuth": 7,
       "optionalAuth": 1,
-      "optionalPlayerAuth": 2
+      "optionalPlayerAuth": 2,
+      "tenantAuth": 12
     },
     "byMethod": {
-      "GET": 44,
-      "POST": 29,
+      "GET": 54,
+      "POST": 35,
       "PUT": 6,
       "DELETE": 1,
-      "PATCH": 4,
+      "PATCH": 6,
       "ALL": 28
     },
     "byGroup": {
@@ -932,12 +1076,9 @@
       ":id/end": 1,
       ":id/extend": 1,
       ":id/feedback": 1,
-      ":id/generate-invoice": 1,
       ":id/pay": 1,
       ":id/pay-dues": 1,
-      ":id/renew": 1,
       ":id/reset-password": 1,
-      ":id/send-reminder": 1,
       ":id/stats": 1,
       ":id/status": 1,
       ":id/suspend": 1,
@@ -948,24 +1089,30 @@
       "api-docs.json": 1,
       "api": 1,
       "api/health": 1,
-      "api/platform/auth": 1,
+      "api/platform/auth": 13,
       "api/platform/business-types": 1,
       "api/platform/customers": 1,
-      "api/platform/dashboard": 1,
+      "api/platform/dashboard": 3,
       "api/platform/help-articles": 1,
       "api/platform/notifications": 1,
-      "api/platform/onboarding": 1,
-      "api/platform/revenue": 1,
+      "api/platform/onboarding": 4,
+      "api/platform/revenue": 3,
       "api/platform/subscription-plans": 1,
-      "api/platform/subscriptions": 1,
-      "api/platform/support": 1,
+      "api/platform/subscriptions": 10,
+      "api/platform/support": 7,
       "api/platform/tenants": 1,
       "api/platform/trials": 1,
       "api/player": 1,
       "api/player/auth": 1,
+      "api/player/bookings": 1,
+      "api/player/dashboard": 1,
+      "api/player/dues": 1,
+      "api/player/link-venue": 1,
+      "api/player/payments": 1,
+      "api/player/venues": 2,
       "api/public": 1,
-      "api/public/demo": 1,
-      "api/tenant/billing": 1,
+      "api/public/demo": 3,
+      "api/tenant/billing": 4,
       "api/tenant/bookings": 1,
       "api/tenant/dues": 1,
       "api/tenant/expenses": 1,
@@ -973,58 +1120,36 @@
       "api/tenant/payments": 1,
       "api/tenant/resources": 1,
       "api/tenant/staff": 2,
-      "auth/signup": 1,
-      "bookings": 1,
       "bulk": 1,
-      "business-types": 1,
       "categories": 1,
-      "change-password": 2,
+      "change-password": 1,
       "custom-range": 1,
       "customer-lifetime-value": 1,
       "customer/:customerId": 1,
       "dashboard": 1,
-      "dues": 1,
       "expense-breakdown": 1,
       "export-csv": 1,
       "forgot-password": 1,
-      "invoices": 1,
-      "link-venue": 1,
       "login": 1,
       "logout": 1,
       "me": 1,
-      "meta": 1,
       "one-click-extend/:id": 1,
-      "overdue": 1,
       "payment-split": 1,
-      "payments": 1,
       "peak-hours": 1,
-      "profile": 1,
       "profit-loss": 1,
       "profit-loss-by-branch": 1,
       "public": 1,
-      "recent-activity": 1,
-      "record-payment": 1,
       "refresh": 1,
-      "reset": 1,
       "reset-password/:token": 1,
       "resource-heatmap": 1,
       "resource-usage": 1,
       "revenue": 1,
       "revenue-trend": 1,
       "search": 1,
-      "signup": 1,
       "staff-login": 1,
       "staff-performance": 1,
       "start": 1,
-      "stats": 1,
-      "subscription": 1,
-      "subscription-plans": 1,
-      "tickets": 2,
-      "tickets/:id": 2,
-      "tickets/:id/messages": 1,
-      "tickets/stats": 1,
-      "venues": 1,
-      "venues/:tenantId/resources": 1
+      "stats": 1
     }
   }
 }

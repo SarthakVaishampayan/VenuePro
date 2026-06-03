@@ -135,7 +135,11 @@ export default function PlayerBookings() {
             const StatusIcon = status.icon;
             const startTime = new Date(session.startTimeRounded || session.startTime || session.createdAt);
             const endTime = session.endTime ? new Date(session.endTime) : null;
-            const duration = session.durationMinutes || (endTime ? Math.round((endTime - startTime) / 60000) : null);
+            // For timer-based sessions (bookedDuration > 0), use the booked duration
+            // instead of calculating from (endTime - startTimeRounded), which can
+            // overcount due to startTimeRounded being rounded down while endTime
+            // is calculated from the actual (unrounded) start time.
+            const duration = session.durationMinutes || session.bookedDuration || (endTime ? Math.round((endTime - startTime) / 60000) : null);
             const isActive = session.bookingStatus === 'in_progress';
 
             return (

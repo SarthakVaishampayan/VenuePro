@@ -4,6 +4,7 @@ import OwnerUser from '../models/OwnerUser.js';
 import StaffUser from '../models/StaffUser.js';
 import Tenant from '../../../core/models/Tenant.js';
 import TenantSetting from '../models/TenantSetting.js';
+import { SYSTEM_CONFIG } from '../../../core/config/constants.js';
 import { success, error, created } from '../../../core/utils/responseHelper.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../../core/utils/jwtHelper.js';
 
@@ -55,10 +56,43 @@ export const login = async (req, res, next) => {
       return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
 
+    // Check if account is temporarily locked due to too many failed attempts
+    if (owner.lockedUntil && owner.lockedUntil > new Date()) {
+      const remainingMs = owner.lockedUntil - new Date();
+      const remainingMinutes = Math.ceil(remainingMs / 60000);
+      const timeMsg = remainingMinutes >= 1
+        ? `Please try again in ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}.`
+        : 'Please try again in less than a minute.';
+      return error(res, {
+        statusCode: 423,
+        message: `Account is temporarily locked due to multiple failed login attempts. ${timeMsg}`,
+        code: 'ACCOUNT_LOCKED'
+      });
+    }
+
+    // Reset lockout if lockout period has expired
+    if (owner.lockedUntil && owner.lockedUntil <= new Date()) {
+      owner.failedLoginAttempts = 0;
+      owner.lockedUntil = null;
+    }
+
     const isMatch = await bcrypt.compare(password, owner.passwordHash);
     if (!isMatch) {
+      // Increment failed attempts
+      owner.failedLoginAttempts = (owner.failedLoginAttempts || 0) + 1;
+
+      // Lock account if threshold exceeded
+      if (owner.failedLoginAttempts >= SYSTEM_CONFIG.ACCOUNT_LOCKOUT_THRESHOLD) {
+        owner.lockedUntil = new Date(Date.now() + SYSTEM_CONFIG.ACCOUNT_LOCKOUT_DURATION);
+      }
+
+      await owner.save();
       return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
+
+    // Successful login — reset failed attempts counter
+    owner.failedLoginAttempts = 0;
+    owner.lockedUntil = null;
 
     // Fetch tenant to check status and get business type info
     const tenant = await Tenant.findById(owner.tenantId).populate('businessTypeId');

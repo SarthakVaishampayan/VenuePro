@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import Turf from '../models/Turf.js';
 import BookingSession from '../models/BookingSession.js';
-import CricketFootballDue from '../models/Due.js';
 import Player from '../../../core/models/Player.js';
 import { success, error, created } from '../../../core/utils/responseHelper.js';
 
@@ -127,7 +126,8 @@ export const startSession = async (req, res, next) => {
       if (bookedDuration < 15 || bookedDuration > 480) {
         return error(res, { statusCode: 400, message: 'Duration must be between 15 minutes and 8 hours', code: 'INVALID_DURATION' });
       }
-      endTime = new Date(now.getTime() + bookedDuration * 60000);
+      const roundedNow = roundDownTo5Minutes(now);
+      endTime = new Date(roundedNow.getTime() + bookedDuration * 60000);
     }
 
     const session = await BookingSession.create({
@@ -242,25 +242,6 @@ export const endSession = async (req, res, next) => {
     await session.save();
     await Turf.findByIdAndUpdate(session.resourceId, { status: 'available' });
 
-    // Create a due record for outstanding amounts
-    if (finalAmount > 0) {
-      try {
-        await CricketFootballDue.create({
-          tenantId: session.tenantId,
-          customerId: session.payableCustomerId || session.customerId,
-          bookingSessionId: session._id,
-          amount: finalAmount,
-          notes: discountReason || ''
-        });
-        await Player.findByIdAndUpdate(
-          session.payableCustomerId || session.customerId,
-          { $inc: { totalDue: finalAmount } }
-        );
-      } catch (err) {
-        console.error('Failed to create due for session:', session._id, err);
-      }
-    }
-
     const populatedSession = await BookingSession.findById(session._id)
       .populate('resourceId')
       .populate('customerId');
@@ -304,29 +285,14 @@ export const timerExpired = async (req, res, next) => {
     session.payableCustomer = session.customerNameSnapshot;
     session.payableCustomerId = session.customerId;
 
+    // If amount > 0, leave paymentStatus as 'pending' so the Pay button
+    // shows in the session history table for the user to collect payment.
     if (roundedAmount <= 0) {
       session.paymentStatus = 'paid';
-    } else {
-      session.paymentStatus = 'due';
     }
 
     await session.save();
     await Turf.findByIdAndUpdate(session.resourceId, { status: 'available' });
-
-    // Create a due record for outstanding amounts
-    if (roundedAmount > 0) {
-      try {
-        await CricketFootballDue.create({
-          tenantId: session.tenantId,
-          customerId: session.customerId,
-          bookingSessionId: session._id,
-          amount: roundedAmount
-        });
-        await Player.findByIdAndUpdate(session.customerId, { $inc: { totalDue: roundedAmount } });
-      } catch (err) {
-        console.error('Failed to create due for session:', session._id, err);
-      }
-    }
 
     const populatedSession = await BookingSession.findById(session._id)
       .populate('resourceId')

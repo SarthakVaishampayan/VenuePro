@@ -130,6 +130,34 @@ export const createDue = async (req, res, next) => {
       return error(res, { statusCode: 400, message: 'Session, customer, and amount are required', code: 'MISSING_FIELDS' });
     }
 
+    // Verify that the customerId matches the session's actual customer
+    const BookingSession = mongoose.model('BookingSession');
+    const session = await BookingSession.findById(bookingSessionId).lean();
+    if (!session) {
+      return error(res, { statusCode: 404, message: 'Session not found', code: 'SESSION_NOT_FOUND' });
+    }
+    if (session.tenantId.toString() !== req.tenantId.toString()) {
+      return error(res, { statusCode: 403, message: 'Session does not belong to this venue', code: 'FORBIDDEN' });
+    }
+
+    // The customerId must match either the session's primary customer, secondary customer,
+    // or payableCustomerId. If someone manually passes a different customer, reject it.
+    const sessionCustomerIds = [
+      session.customerId?.toString(),
+      session.secondaryCustomerId?.toString(),
+      session.payableCustomerId?.toString()
+    ].filter(Boolean);
+
+    const requestCustomerId = typeof customerId === 'string' ? customerId : customerId.toString();
+
+    if (!sessionCustomerIds.includes(requestCustomerId)) {
+      return error(res, {
+        statusCode: 400,
+        message: `Customer mismatch: this session belongs to ${session.customerNameSnapshot || 'another player'}. Cannot create a due for a different customer.`,
+        code: 'CUSTOMER_MISMATCH'
+      });
+    }
+
     const due = await Due.create({
       tenantId: req.tenantId,
       customerId,

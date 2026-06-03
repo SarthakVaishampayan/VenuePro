@@ -129,7 +129,8 @@ export const startSession = async (req, res, next) => {
       if (bookedDuration < 15 || bookedDuration > 480) {
         return error(res, { statusCode: 400, message: 'Duration must be between 15 minutes and 8 hours', code: 'INVALID_DURATION' });
       }
-      endTime = new Date(now.getTime() + bookedDuration * 60000);
+      const roundedNow = roundDownTo5Minutes(now);
+      endTime = new Date(roundedNow.getTime() + bookedDuration * 60000);
     }
 
     const session = await BookingSession.create({

@@ -316,7 +316,7 @@ export default function Customers() {
                                   </span>
                                 </div>
                                 <p className="text-xs text-text-muted mt-0.5">
-                                  {d.bookingSessionId?.resourceNameSnapshot || 'Session'} · {new Date(d.createdAt).toLocaleDateString()}
+                                  {d.bookingSessionId?.resourceNameSnapshot || 'Session'} · {new Date(d.createdAt).toLocaleString()}
                                 </p>
                               </div>
                               <span className="text-xs text-text-muted">
@@ -345,48 +345,56 @@ export default function Customers() {
 
       {/* Pay Dues Modal */}
       <Modal open={showPayDues} onClose={() => setShowPayDues(false)} title={`Clear Dues — ${payDuesCustomer?.fullName || ''}`} size="sm">
-        {payDuesCustomer && (
-          <div className="space-y-4">
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-              <p className="text-amber-800 dark:text-amber-300 font-medium">
-                Pending Dues: ₹{payDuesCustomer.totalDue?.toLocaleString() || '0'}
-              </p>
-              <p className="text-amber-700 dark:text-amber-400 mt-1 text-xs">
-                Enter an amount to pay. Leave empty to clear all pending dues.
-              </p>
-            </div>
-            <Input
-              label={`Amount (leave empty for full payment of ₹${(payDuesCustomer.totalDue || 0).toLocaleString()})`}
-              type="number"
-              value={payDuesAmount}
-              onChange={(e) => setPayDuesAmount(e.target.value)}
-              min="0"
-              max={payDuesCustomer.totalDue || 0}
-              step="0.5"
-            />
-            <Select
-              label="Payment Mode"
-              value={payDuesMode}
-              onChange={(e) => setPayDuesMode(e.target.value)}
-              options={[
-                { value: 'cash', label: 'Cash' },
-                { value: 'online', label: 'Online (UPI/Card)' }
-              ]}
-            />
-            {payDuesError && (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-700 dark:text-red-400">{payDuesError}</p>
+        {payDuesCustomer && (() => {
+          // Use the already-fetched expanded dues data for accurate pending total,
+          // not payDuesCustomer.totalDue which comes from getAllCustomers and may be stale
+          const modalDues = customerDues[payDuesCustomer._id] || [];
+          const modalPendingDues = modalDues.filter(d => d.status === 'pending' || d.status === 'partial');
+          const modalTotalPending = modalPendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+
+          return (
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+                <p className="text-amber-800 dark:text-amber-300 font-medium">
+                  Pending Dues: ₹{modalTotalPending.toLocaleString()}
+                </p>
+                <p className="text-amber-700 dark:text-amber-400 mt-1 text-xs">
+                  Enter an amount to pay. Leave empty to clear all pending dues.
+                </p>
               </div>
-            )}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setShowPayDues(false)}>Cancel</Button>
-              <Button onClick={handlePayDues} loading={payingDues}>
-                <DollarSign className="w-4 h-4" />
-                Pay ₹{payDuesAmount || (payDuesCustomer.totalDue || 0)}
-              </Button>
+              <Input
+                label={`Amount (leave empty for full payment of ₹${modalTotalPending.toLocaleString()})`}
+                type="number"
+                value={payDuesAmount}
+                onChange={(e) => setPayDuesAmount(e.target.value)}
+                min="0"
+                max={modalTotalPending || 0}
+                step="0.5"
+              />
+              <Select
+                label="Payment Mode"
+                value={payDuesMode}
+                onChange={(e) => setPayDuesMode(e.target.value)}
+                options={[
+                  { value: 'cash', label: 'Cash' },
+                  { value: 'online', label: 'Online (UPI/Card)' }
+                ]}
+              />
+              {payDuesError && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-700 dark:text-red-400">{payDuesError}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="secondary" onClick={() => setShowPayDues(false)}>Cancel</Button>
+                <Button onClick={handlePayDues} loading={payingDues}>
+                  <DollarSign className="w-4 h-4" />
+                  Pay ₹{payDuesAmount || modalTotalPending}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* Credentials Display Modal */}
