@@ -263,7 +263,7 @@ export const getCustomerDues = async (req, res, next) => {
 
 export const payCustomerDues = async (req, res, next) => {
   try {
-    const { amount, mode } = req.body;
+    const { amount, mode, discount } = req.body;
     const player = await Player.findById(req.params.id);
     if (!player) {
       return error(res, { statusCode: 404, message: 'Customer not found', code: 'NOT_FOUND' });
@@ -280,38 +280,70 @@ export const payCustomerDues = async (req, res, next) => {
     }
 
     const totalRemaining = pendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
-    const payAmount = amount ? Math.min(parseFloat(amount), totalRemaining) : totalRemaining;
 
-    if (payAmount <= 0) {
+    // Apply discount if provided — only allowed when paying the full remaining amount
+    let discountAmount = 0;
+    if (discount) {
+      const parsedDiscount = Math.max(0, parseFloat(discount));
+      const parsedAmount = amount ? parseFloat(amount) : totalRemaining;
+      if (parsedAmount < totalRemaining) {
+        return error(res, { statusCode: 400, message: 'Discount can only be applied when clearing the full due amount. Enter the full amount or remove the discount.', code: 'DISCOUNT_PARTIAL_NOT_ALLOWED' });
+      }
+      discountAmount = Math.min(parsedDiscount, totalRemaining);
+    }
+
+    const discountedTotal = totalRemaining - discountAmount;
+    const payAmount = amount ? Math.min(Math.max(0, parseFloat(amount)), discountedTotal) : discountedTotal;
+
+    if (payAmount <= 0 && discountAmount <= 0) {
       return error(res, { statusCode: 400, message: 'Invalid payment amount', code: 'INVALID_AMOUNT' });
     }
 
+    // Distribute discount proportionally across dues
+    let remainingDiscount = discountAmount;
     let remainingToPay = payAmount;
     const updatedDues = [];
 
     for (const due of pendingDues) {
-      if (remainingToPay <= 0) break;
+      if (remainingToPay <= 0 && remainingDiscount <= 0) break;
 
       const dueRemaining = due.amount - due.paidAmount;
-      const payForThisDue = Math.min(remainingToPay, dueRemaining);
 
-      await PickleballPayment.create({
-        tenantId: req.tenantId,
-        bookingSessionId: due.bookingSessionId,
-        customerId: due.customerId,
-        dueId: due._id,
-        amount: payForThisDue,
-        mode: mode || 'cash',
-        type: 'due_payment',
-        receivedBy: req.user.id,
-        receivedByName: req.user.name || 'staff'
-      });
+      // Apply proportional discount to this due
+      let discountForThisDue = 0;
+      if (remainingDiscount > 0 && totalRemaining > 0) {
+        const proportion = dueRemaining / totalRemaining;
+        if (remainingDiscount > 0 && proportion > 0) {
+          discountForThisDue = Math.min(remainingDiscount * proportion, dueRemaining);
+          if (remainingDiscount > 0 && discountForThisDue <= 0) {
+            discountForThisDue = Math.min(remainingDiscount, dueRemaining);
+          }
+          remainingDiscount -= discountForThisDue;
+        }
+      }
 
-      due.paidAmount += payForThisDue;
-      due.partialPayments.push({ amount: payForThisDue, mode: mode || 'cash', paidAt: new Date() });
+      const effectiveDueRemaining = dueRemaining - discountForThisDue;
+      const payForThisDue = Math.min(remainingToPay, effectiveDueRemaining);
 
-      const remainingAfter = due.amount - due.paidAmount;
-      if (remainingAfter <= 0) {
+      if (payForThisDue > 0) {
+        await PickleballPayment.create({
+          tenantId: req.tenantId,
+          bookingSessionId: due.bookingSessionId,
+          customerId: due.customerId,
+          dueId: due._id,
+          amount: payForThisDue,
+          mode: mode || 'cash',
+          type: 'due_payment',
+          receivedBy: req.user.id,
+          receivedByName: req.user.name || 'staff'
+        });
+
+        due.paidAmount += payForThisDue;
+        due.partialPayments.push({ amount: payForThisDue, mode: mode || 'cash', paidAt: new Date() });
+      }
+
+      const totalCovered = (due.amount - due.paidAmount) - discountForThisDue;
+      if (totalCovered <= 0) {
         due.status = 'paid';
         due.paidAt = new Date();
         due.paymentMode = mode || 'cash';
@@ -321,8 +353,9 @@ export const payCustomerDues = async (req, res, next) => {
 
       await due.save();
 
+      // Update session payment status
       const session = await mongoose.model('PickleballBookingSession').findById(due.bookingSessionId);
-      if (session && (session.paymentStatus === 'due' || session.paymentStatus === 'pending')) {
+      if (session && ['pending', 'due', 'partial'].includes(session.paymentStatus)) {
         const allDuesForSession = await PickleballDue.find({ bookingSessionId: due.bookingSessionId });
         const allPaid = allDuesForSession.every(d => d.status === 'paid' || d.status === 'waived');
         session.paymentStatus = allPaid ? 'paid' : 'partial';
@@ -333,7 +366,8 @@ export const payCustomerDues = async (req, res, next) => {
       updatedDues.push(due);
     }
 
-    player.totalDue = Math.max(0, (player.totalDue || 0) - payAmount);
+    const totalPaidOrDiscounted = payAmount + discountAmount;
+    player.totalDue = Math.max(0, (player.totalDue || 0) - totalPaidOrDiscounted);
     await player.save();
 
     return success(res, {
@@ -341,9 +375,12 @@ export const payCustomerDues = async (req, res, next) => {
         customer: player,
         dues: updatedDues,
         totalPaid: payAmount,
-        remainingDue: Math.max(0, totalRemaining - payAmount)
+        discountApplied: discountAmount,
+        remainingDue: Math.max(0, totalRemaining - payAmount - discountAmount)
       },
-      message: `₹${payAmount} paid successfully`
+      message: discountAmount > 0
+        ? `₹${payAmount} paid (₹${discountAmount} discount applied) successfully`
+        : `₹${payAmount} paid successfully`
     });
   } catch (err) {
     next(err);

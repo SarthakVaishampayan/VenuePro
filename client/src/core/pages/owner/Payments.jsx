@@ -1,12 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ownerApi from '../../services/ownerApi';
 import { Card, CardHeader } from '../../components/common/Card';
 import Button from '../../components/common/Button';
-import Modal from '../../components/common/Modal';
-import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { PageLoader } from '../../components/common/Loader';
-import { Plus, Search } from 'lucide-react';
+
+// Format date as YYYY-MM-DD using LOCAL time (avoid toISOString UTC conversion bug)
+const fmtLocal = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);
@@ -16,20 +21,72 @@ export default function Payments() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // Record payment modal
-  const [showModal, setShowModal] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [customerResults, setCustomerResults] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [amount, setAmount] = useState('');
-  const [mode, setMode] = useState('cash');
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+  // Date filter — same system as Reports
+  const [filter, setFilter] = useState('today');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
-  const fetchPayments = async (p = 1) => {
+  // Compute dateFrom/dateTo and a display label from the selected filter
+  const getDateParams = useCallback(() => {
+    const now = new Date();
+    let params;
+    switch (filter) {
+      case 'today': {
+        const d = fmtLocal(now);
+        params = { dateFrom: d, dateTo: d };
+        break;
+      }
+      case 'yesterday': {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 1);
+        params = { dateFrom: fmtLocal(d), dateTo: fmtLocal(d) };
+        break;
+      }
+      case 'week': {
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        params = { dateFrom: fmtLocal(start), dateTo: fmtLocal(end) };
+        break;
+      }
+      case 'month': {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        params = { dateFrom: fmtLocal(start), dateTo: fmtLocal(end) };
+        break;
+      }
+      case 'custom':
+        params = { dateFrom: customStart, dateTo: customEnd };
+        break;
+      default:
+        params = {};
+    }
+    // Build a human-readable label
+    let label;
+    if (filter === 'today') label = 'Today';
+    else if (filter === 'yesterday') label = 'Yesterday';
+    else if (filter === 'week') label = 'This Week';
+    else if (filter === 'month') label = 'This Month';
+    else if (filter === 'all') label = 'All Time';
+    else if (filter === 'custom' && params.dateFrom && params.dateTo) {
+      if (params.dateFrom === params.dateTo) label = params.dateFrom;
+      else label = `${params.dateFrom} — ${params.dateTo}`;
+    } else label = '';
+    return { ...params, label };
+  }, [filter, customStart, customEnd]);
+
+  const buildQuery = useCallback((p = 1) => {
+    const params = new URLSearchParams({ page: p, limit: 20 });
+    const { dateFrom, dateTo } = getDateParams();
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    return params.toString();
+  }, [getDateParams]);
+
+  const fetchPayments = useCallback(async (p = 1) => {
     try {
-      const { data } = await ownerApi.get(`/payments?page=${p}&limit=20`);
+      const { data } = await ownerApi.get(`/payments?${buildQuery(p)}`);
       setPayments(data.data || []);
       if (data.meta) {
         setTotalPages(data.meta.totalPages);
@@ -37,79 +94,78 @@ export default function Payments() {
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  };
+  }, [buildQuery]);
 
-  const fetchDailySummary = async () => {
+  const fetchDailySummary = useCallback(async () => {
     try {
-      const { data } = await ownerApi.get('/payments/daily-summary');
-      setDailySummary(data.data);
+      // Daily summary respects the selected filter
+      const params = new URLSearchParams();
+      if (filter === 'all') {
+        params.append('range', 'all');
+      } else {
+        const dates = getDateParams();
+        if (dates.dateFrom) params.append('dateFrom', dates.dateFrom);
+        if (dates.dateTo) params.append('dateTo', dates.dateTo);
+      }
+      const { data } = await ownerApi.get(`/payments/daily-summary?${params.toString()}`);
+      // Round totals to fix floating point artifacts
+      const d = data.data;
+      if (d) {
+        d.total = Math.round(d.total * 100) / 100;
+        if (d.byMode) {
+          Object.keys(d.byMode).forEach(k => { d.byMode[k] = Math.round(d.byMode[k] * 100) / 100; });
+        }
+      }
+      setDailySummary(d);
     } catch (err) { console.error(err); }
-  };
+  }, [filter, getDateParams]);
 
   useEffect(() => {
-    Promise.all([fetchPayments(), fetchDailySummary()]);
-  }, []);
-
-  const openRecord = async () => {
-    setShowModal(true);
-    setSelectedCustomer('');
-    setCustomerSearch('');
-    setAmount('');
-    setMode('cash');
-    setNotes('');
-    setCustomerResults([]);
-    try {
-      const { data } = await ownerApi.get('/customers');
-      setCustomers(data.data || []);
-    } catch {}
-  };
-
-  const handleCustomerSearch = (q) => {
-    setCustomerSearch(q);
-    if (q.length < 1) { setCustomerResults([]); return; }
-    const results = customers.filter(c =>
-      c.fullName?.toLowerCase().includes(q.toLowerCase()) ||
-      c.phone?.includes(q) ||
-      c.customerCode?.toLowerCase().includes(q.toLowerCase())
-    );
-    setCustomerResults(results.slice(0, 10));
-  };
-
-  const handleSave = async () => {
-    if (!selectedCustomer || !amount) return;
-    setSaving(true);
-    try {
-      await ownerApi.post('/payments', {
-        customerId: selectedCustomer,
-        amount: parseFloat(amount),
-        mode,
-        notes
-      });
-      setShowModal(false);
-      fetchPayments();
-      fetchDailySummary();
-    } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to record payment');
-    } finally { setSaving(false); }
-  };
+    setLoading(true);
+    Promise.all([fetchPayments(1), fetchDailySummary()]);
+  }, [filter, customStart, customEnd, fetchPayments, fetchDailySummary]);
 
   if (loading) return <PageLoader />;
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Payments</h1>
-          <p className="text-text-muted mt-1">Record and view payments</p>
+          <p className="text-text-muted mt-1">View payment history</p>
         </div>
-        <Button onClick={openRecord} icon={Plus}>Record Payment</Button>
+        <div className="flex items-center gap-2">
+          <div className="w-36">
+            <Select
+              value={filter}
+              onChange={(e) => { setFilter(e.target.value); setPage(1); }}
+              options={[
+                { value: 'today', label: 'Today' },
+                { value: 'yesterday', label: 'Yesterday' },
+                { value: 'week', label: 'This Week' },
+                { value: 'month', label: 'This Month' },
+                { value: 'custom', label: 'Custom Range' },
+                { value: 'all', label: 'All Time' }
+              ]}
+            />
+          </div>
+          {filter === 'custom' && (
+            <>
+              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg text-text-primary" />
+              <span className="text-text-muted">—</span>
+              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg text-text-primary" />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Daily Summary */}
       {dailySummary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
-            <p className="text-sm text-text-muted">Today's Total</p>
+            <p className="text-sm text-text-muted">{getDateParams().label || 'Total'}</p>
             <p className="text-2xl font-bold text-text-primary">₹{dailySummary.total?.toLocaleString()}</p>
           </Card>
           <Card>
@@ -151,7 +207,7 @@ export default function Payments() {
                   {payments.map((p) => (
                     <tr key={p._id} className="hover:bg-surface-secondary/50 transition-colors">
                       <td className="px-4 py-3 text-sm text-text-primary">{p.customerId?.fullName || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-text-primary text-right font-medium">₹{p.amount}</td>
+                      <td className="px-4 py-3 text-sm text-text-primary text-right font-medium">₹{Math.round(p.amount * 100) / 100}</td>
                       <td className="px-4 py-3">
                         <span className="capitalize text-sm text-text-primary">{p.mode}</span>
                       </td>
@@ -182,67 +238,6 @@ export default function Payments() {
         )}
       </Card>
 
-      {/* Record Payment Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Record Payment" size="md">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-text-primary">Customer</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => handleCustomerSearch(e.target.value)}
-                placeholder="Search customer..."
-                className="w-full pl-10 pr-4 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-text-primary"
-              />
-            </div>
-            {customerResults.length > 0 && (
-              <div className="border border-border rounded-lg divide-y divide-border max-h-40 overflow-y-auto">
-                {customerResults.map((c) => (
-                  <button
-                    key={c._id}
-                    onClick={() => {
-                      setSelectedCustomer(c._id);
-                      setCustomerSearch(`${c.fullName} (${c.phone || c.customerCode})`);
-                      setCustomerResults([]);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-surface-tertiary transition-colors"
-                  >
-                    {c.fullName} — <span className="text-text-muted">{c.customerCode}{c.phone ? ` | ${c.phone}` : ''}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <Input label="Amount (₹)" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" step="0.5" required />
-          <Select
-            label="Payment Mode"
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            options={[
-              { value: 'cash', label: 'Cash' },
-              { value: 'online', label: 'Online (UPI/Card)' }
-            ]}
-          />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-text-primary">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-text-primary"
-              rows={2}
-              placeholder="Optional notes..."
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving} disabled={!selectedCustomer || !amount}>
-              Record Payment
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

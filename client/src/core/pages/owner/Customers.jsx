@@ -1,42 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import ownerApi from '../../services/ownerApi';
-import { Card, CardHeader } from '../../components/common/Card';
-import Button from '../../components/common/Button';
+import { Card } from '../../components/common/Card';
+import { PageLoader } from '../../components/common/Loader';
 import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { PageLoader } from '../../components/common/Loader';
-import { Plus, Edit2, Trash2, Search, Phone, Mail, ChevronDown, ChevronUp, DollarSign, AlertCircle, Key, Copy, Check } from 'lucide-react';
+import { Search, Phone, Mail, ChevronDown, ChevronUp, AlertCircle, DollarSign, Percent } from 'lucide-react';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', nickname: '', phone: '', email: '' });
-  const [saving, setSaving] = useState(false);
-  const navigate = useNavigate();
-
-  // Temp password display after creation
-  const [createdCredentials, setCreatedCredentials] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
 
   // Dues expanded per customer
   const [expandedId, setExpandedId] = useState(null);
   const [customerDues, setCustomerDues] = useState({});
   const [loadingDues, setLoadingDues] = useState({});
 
-  // Clear Dues modal
-  const [showPayDues, setShowPayDues] = useState(false);
-  const [payDuesCustomer, setPayDuesCustomer] = useState(null);
-  const [payDuesAmount, setPayDuesAmount] = useState('');
-  const [payDuesMode, setPayDuesMode] = useState('cash');
-  const [payingDues, setPayingDues] = useState(false);
-  const [payDuesError, setPayDuesError] = useState('');
+  // Clear All Dues modal
+  const [clearModal, setClearModal] = useState({ open: false, customer: null });
+  const [clearAmount, setClearAmount] = useState('');
+  const [clearDiscount, setClearDiscount] = useState('');
+  const [clearMode, setClearMode] = useState('cash');
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState('');
 
   const fetchCustomers = async () => {
     try {
@@ -64,107 +54,55 @@ export default function Customers() {
     ));
   }, [search, customers]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ fullName: '', nickname: '', phone: '', email: '' });
-    setShowModal(true);
-  };
-
-  const openEdit = (c) => {
-    setEditing(c);
-    setForm({
-      fullName: c.fullName || '',
-      nickname: c.nickname || '',
-      phone: c.phone || '',
-      email: c.email || ''
-    });
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.fullName || (!editing && !form.email)) return;
-    setSaving(true);
-    try {
-      if (editing) {
-        await ownerApi.put(`/customers/${editing._id}`, form);
-        setShowModal(false);
-      } else {
-        const { data: response } = await ownerApi.post('/customers', form);
-        setShowModal(false);
-        // Show the temp password to the owner
-        if (response.data?.tempPassword) {
-          setCreatedCredentials({
-            fullName: response.data.player?.fullName || form.fullName,
-            email: form.email,
-            tempPassword: response.data.tempPassword
-          });
-          setCopied(false);
-        }
-      }
-      fetchCustomers();
-    } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to save customer');
-    } finally { setSaving(false); }
-  };
-
-  const copyCredentials = async () => {
-    if (!createdCredentials) return;
-    try {
-      await navigator.clipboard.writeText(
-        `Player: ${createdCredentials.fullName}\nEmail: ${createdCredentials.email}\nPortal: ${window.location.origin}/player/login\nTemporary Password: ${createdCredentials.tempPassword}\n\nPlease change your password after logging in.`
-      );
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard not available */ }
-  };
-
   const toggleExpand = async (customerId) => {
     if (expandedId === customerId) {
       setExpandedId(null);
       return;
     }
     setExpandedId(customerId);
-    if (!customerDues[customerId]) {
-      setLoadingDues(prev => ({ ...prev, [customerId]: true }));
-      try {
-        const { data } = await ownerApi.get(`/customers/${customerId}/dues`);
-        setCustomerDues(prev => ({ ...prev, [customerId]: data.data || [] }));
-      } catch (err) { console.error(err); }
-      finally { setLoadingDues(prev => ({ ...prev, [customerId]: false })); }
+    setLoadingDues(prev => ({ ...prev, [customerId]: true }));
+    try {
+      const { data } = await ownerApi.get(`/customers/${customerId}/dues`);
+      setCustomerDues(prev => ({ ...prev, [customerId]: data.data || [] }));
+    } catch (err) { console.error(err); }
+    finally { setLoadingDues(prev => ({ ...prev, [customerId]: false })); }
+  };
+
+  const openClearModal = useCallback((customer) => {
+    setClearModal({ open: true, customer });
+    setClearAmount('');
+    setClearDiscount('');
+    setClearMode('cash');
+    setClearError('');
+  }, []);
+
+  const handleClearDues = async () => {
+    const customerId = clearModal.customer?._id;
+    if (!customerId) return;
+    setClearing(true);
+    setClearError('');
+    try {
+      await ownerApi.post(`/customers/${customerId}/pay-dues`, {
+        amount: clearAmount ? parseFloat(clearAmount) : undefined,
+        discount: clearDiscount ? parseFloat(clearDiscount) : undefined,
+        mode: clearMode
+      });
+      setClearModal({ open: false, customer: null });
+      // Refresh both dues and customer list
+      const { data: duesData } = await ownerApi.get(`/customers/${customerId}/dues`);
+      setCustomerDues(prev => ({ ...prev, [customerId]: duesData.data || [] }));
+      await fetchCustomers();
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message || 'Failed to process payment';
+      setClearError(msg);
+    } finally {
+      setClearing(false);
     }
   };
 
-  const openPayDues = (customer) => {
-    setPayDuesCustomer(customer);
-    setPayDuesAmount('');
-    setPayDuesMode('cash');
-    setPayDuesError('');
-    setShowPayDues(true);
-  };
-
-  const handlePayDues = async () => {
-    if (!payDuesCustomer) return;
-    setPayingDues(true);
-    setPayDuesError('');
-    try {
-      const amount = payDuesAmount ? parseFloat(payDuesAmount) : undefined;
-      const { data } = await ownerApi.post(`/customers/${payDuesCustomer._id}/pay-dues`, { amount, mode: payDuesMode });
-      setShowPayDues(false);
-      setExpandedId(null);
-      setCustomerDues(prev => ({ ...prev, [payDuesCustomer._id]: [] }));
-      fetchCustomers();
-    } catch (err) {
-      setPayDuesError(err.response?.data?.error?.message || 'Failed to process payment');
-    } finally { setPayingDues(false); }
-  };
-
-  const handleDelete = async (c) => {
-    if (!confirm(`Delete "${c.fullName}"? This cannot be undone.`)) return;
-    try {
-      await ownerApi.delete(`/customers/${c._id}`);
-      fetchCustomers();
-    } catch (err) { alert('Failed to delete customer'); }
-  };
+  const getTotalPending = useCallback((dues) => {
+    return dues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+  }, []);
 
   if (loading) return <PageLoader />;
 
@@ -174,7 +112,7 @@ export default function Customers() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text-primary">Players</h1>
-            <p className="text-text-muted mt-1">Manage your players and customers</p>
+            <p className="text-text-muted mt-1">View your players and customers</p>
           </div>
         </div>
         <div className="p-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-center">
@@ -196,9 +134,8 @@ export default function Customers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Players</h1>
-          <p className="text-text-muted mt-1">Manage your players and customers</p>
+          <p className="text-text-muted mt-1">View your players and customers</p>
         </div>
-        <Button onClick={openCreate} icon={Plus}>Add Player</Button>
       </div>
 
       {/* Search */}
@@ -218,8 +155,6 @@ export default function Customers() {
         {filtered.map((c) => {
           const isExpanded = expandedId === c._id;
           const dues = customerDues[c._id] || [];
-          const pendingDues = dues.filter(d => d.status === 'pending' || d.status === 'partial');
-          const totalPending = pendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
 
           return (
             <div key={c._id}>
@@ -251,7 +186,7 @@ export default function Customers() {
                     </span>
                   )}
                 </div>
-                {c.nickname && <p className="text-xs text-text-muted mt-1">aka "{c.nickname}"</p>}
+                {c.nickname && <p className="text-xs text-text-muted mt-1">aka &ldquo;{c.nickname}&rdquo;</p>}
                 {/* Wins/Losses stats */}
                 {(c.wins > 0 || c.losses > 0) && (
                   <div className="mt-2 flex items-center gap-3 text-xs">
@@ -268,14 +203,6 @@ export default function Customers() {
                     )}
                   </div>
                 )}
-                <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(c); }}>
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                  </Button>
-                </div>
               </Card>
 
               {/* Dues Section (expandable) */}
@@ -291,11 +218,14 @@ export default function Customers() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-semibold text-text-primary">Dues</h4>
-                        {totalPending > 0 && (
-                          <Button size="sm" onClick={() => openPayDues(c)}>
-                            <DollarSign className="w-3.5 h-3.5 mr-1" />
-                            Clear All (₹{totalPending})
-                          </Button>
+                        {getTotalPending(dues) > 0 && (
+                          <button
+                            onClick={() => openClearModal(c)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                          >
+                            <DollarSign className="w-3.5 h-3.5" />
+                            Clear All Dues
+                          </button>
                         )}
                       </div>
                       <div className="space-y-1.5">
@@ -338,128 +268,106 @@ export default function Customers() {
         })}
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-12 text-text-muted">
-            {search ? 'No customers match your search.' : 'No players yet. Click "Add Player" to get started.'}
+            {search ? 'No players match your search.' : 'No players yet.'}
           </div>
         )}
       </div>
 
-      {/* Pay Dues Modal */}
-      <Modal open={showPayDues} onClose={() => setShowPayDues(false)} title={`Clear Dues — ${payDuesCustomer?.fullName || ''}`} size="sm">
-        {payDuesCustomer && (() => {
-          // Use the already-fetched expanded dues data for accurate pending total,
-          // not payDuesCustomer.totalDue which comes from getAllCustomers and may be stale
-          const modalDues = customerDues[payDuesCustomer._id] || [];
-          const modalPendingDues = modalDues.filter(d => d.status === 'pending' || d.status === 'partial');
-          const modalTotalPending = modalPendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      {/* Clear All Dues Modal */}
+      <Modal
+        open={clearModal.open}
+        onClose={() => setClearModal({ open: false, customer: null })}
+        title="Clear All Dues"
+        size="sm"
+      >
+        {clearModal.customer && (() => {
+          const dues = customerDues[clearModal.customer._id] || [];
+          const totalPending = getTotalPending(dues);
+          const discountVal = parseFloat(clearDiscount) || 0;
+          const effectiveTotal = Math.max(0, totalPending - discountVal);
 
           return (
             <div className="space-y-4">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-                <p className="text-amber-800 dark:text-amber-300 font-medium">
-                  Pending Dues: ₹{modalTotalPending.toLocaleString()}
-                </p>
-                <p className="text-amber-700 dark:text-amber-400 mt-1 text-xs">
-                  Enter an amount to pay. Leave empty to clear all pending dues.
-                </p>
+              <div className="p-3 bg-surface-secondary rounded-lg text-sm space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Player:</span>
+                  <span className="font-medium text-text-primary">{clearModal.customer.fullName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Pending Dues:</span>
+                  <span className="font-semibold text-text-primary">₹{totalPending.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Dues Count:</span>
+                  <span className="font-medium text-text-primary">{dues.filter(d => d.status === 'pending' || d.status === 'partial').length}</span>
+                </div>
+                {discountVal > 0 && (
+                  <div className="flex justify-between pt-1 border-t border-border">
+                    <span className="text-text-muted">After Discount:</span>
+                    <span className="font-semibold text-emerald-600">₹{effectiveTotal.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
+
               <Input
-                label={`Amount (leave empty for full payment of ₹${modalTotalPending.toLocaleString()})`}
+                label={`Amount (leave empty to pay ₹${effectiveTotal.toLocaleString()})`}
                 type="number"
-                value={payDuesAmount}
-                onChange={(e) => setPayDuesAmount(e.target.value)}
+                value={clearAmount}
+                onChange={(e) => {
+                  setClearAmount(e.target.value);
+                  // If entering a partial amount, clear any discount (discount only for full payment)
+                  if (e.target.value && parseFloat(e.target.value) < totalPending) {
+                    setClearDiscount('');
+                  }
+                }}
                 min="0"
-                max={modalTotalPending || 0}
+                max={effectiveTotal}
                 step="0.5"
               />
+
+              {(!clearAmount || parseFloat(clearAmount) >= totalPending) && (
+                <Input
+                  label="Discount (₹) — optional (only for full payment)"
+                  type="number"
+                  value={clearDiscount}
+                  onChange={(e) => setClearDiscount(e.target.value)}
+                  min="0"
+                  max={totalPending}
+                  step="1"
+                  icon={Percent}
+                />
+              )}
+
               <Select
                 label="Payment Mode"
-                value={payDuesMode}
-                onChange={(e) => setPayDuesMode(e.target.value)}
+                value={clearMode}
+                onChange={(e) => setClearMode(e.target.value)}
                 options={[
                   { value: 'cash', label: 'Cash' },
                   { value: 'online', label: 'Online (UPI/Card)' }
                 ]}
               />
-              {payDuesError && (
-                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                  <p className="text-sm text-red-700 dark:text-red-400">{payDuesError}</p>
+
+              {clearError && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200">
+                  <p className="text-sm text-red-700 dark:text-red-400">{clearError}</p>
                 </div>
               )}
+
               <div className="flex justify-end gap-3 pt-2">
-                <Button variant="secondary" onClick={() => setShowPayDues(false)}>Cancel</Button>
-                <Button onClick={handlePayDues} loading={payingDues}>
+                <Button variant="secondary" onClick={() => setClearModal({ open: false, customer: null })}>
+                  Cancel
+                </Button>
+                <Button onClick={handleClearDues} loading={clearing}>
                   <DollarSign className="w-4 h-4" />
-                  Pay ₹{payDuesAmount || modalTotalPending}
+                  {discountVal > 0
+                    ? `Pay ₹${(parseFloat(clearAmount) || effectiveTotal).toLocaleString()} (₹${discountVal} off)`
+                    : `Pay ₹${(parseFloat(clearAmount) || effectiveTotal).toLocaleString()}`}
                 </Button>
               </div>
             </div>
           );
         })()}
-      </Modal>
-
-      {/* Credentials Display Modal */}
-      <Modal open={!!createdCredentials} onClose={() => setCreatedCredentials(null)} title="Player Created Successfully" size="md">
-        {createdCredentials && (
-          <div className="space-y-4">
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Key className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-semibold text-emerald-800 dark:text-emerald-300">Login Credentials</h3>
-              </div>
-              <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-3">
-                Share these credentials with <strong>{createdCredentials.fullName}</strong>. 
-                They can login at the Player Portal and will be asked to change their password.
-              </p>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 space-y-2 text-sm font-mono">
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Email:</span>
-                  <span className="text-text-primary font-medium">{createdCredentials.email}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Temp Password:</span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-bold text-base tracking-wider">
-                    {createdCredentials.tempPassword}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Portal:</span>
-                  <span className="text-text-primary">{window.location.origin}/player/login</span>
-                </div>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button size="sm" onClick={copyCredentials} className="flex-1">
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied!' : 'Copy Credentials'}
-                </Button>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={() => setCreatedCredentials(null)}>Done</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Create/Edit Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Player' : 'Add Player'} size="md">
-        <div className="space-y-4">
-          <Input label="Full Name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required />
-          <Input label="Nickname / Alias" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="Optional" />
-          <Input label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Optional" />
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required={!editing} placeholder="Required for player portal login" />
-          {!editing && (
-            <p className="text-xs text-text-muted flex items-center gap-1">
-              <Mail className="w-3 h-3" />
-              Email is required — the player will use this to login to their portal with a temporary password.
-            </p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving} disabled={!form.fullName || (!editing && !form.email)}>
-              {editing ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </div>
       </Modal>
     </div>
   );

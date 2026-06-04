@@ -165,6 +165,18 @@ export const staffLogin = async (req, res, next) => {
       return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
 
+    // Fetch tenant to get business name
+    const tenant = await Tenant.findById(staff.tenantId).populate('businessTypeId');
+    if (!tenant) {
+      return error(res, { statusCode: 401, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+    }
+    if (!tenant.isActive || tenant.portalStatus !== 'active') {
+      return error(res, { statusCode: 403, message: 'Tenant access has been suspended. Please contact support.', code: 'TENANT_SUSPENDED' });
+    }
+    const businessType = tenant?.businessTypeId?.key || 'pool_snooker';
+    const businessName = tenant?.businessName || '';
+    const ownerName = tenant?.ownerName || '';
+
     const payload = {
       id: staff._id.toString(),
       tenantId: staff.tenantId.toString(),
@@ -186,7 +198,10 @@ export const staffLogin = async (req, res, next) => {
           name: staff.name,
           role: staff.role,
           permissions: staff.permissions,
-          tenantId: staff.tenantId
+          tenantId: staff.tenantId,
+          businessName,
+          businessType,
+          ownerName
         }
       }
     });
@@ -303,6 +318,7 @@ export const getMe = async (req, res, next) => {
     let user;
     let businessType = 'pool_snooker';
     let businessName = '';
+    let ownerName = '';
     let isDemo = false;
 
     if (req.user.role === 'owner_admin') {
@@ -311,10 +327,20 @@ export const getMe = async (req, res, next) => {
         const tenant = await Tenant.findById(user.tenantId).populate('businessTypeId');
         businessType = tenant?.businessTypeId?.key || 'pool_snooker';
         businessName = tenant?.businessName || '';
+        ownerName = tenant?.ownerName || '';
         isDemo = tenant?.isDemo || false;
       }
     } else {
       user = await StaffUser.findById(req.user.id);
+      if (user) {
+        const tenant = await Tenant.findById(user.tenantId).populate('businessTypeId');
+        if (tenant) {
+          businessType = tenant.businessTypeId?.key || businessType;
+          businessName = tenant.businessName || '';
+          ownerName = tenant.ownerName || '';
+          isDemo = tenant.isDemo || false;
+        }
+      }
     }
 
     if (!user) {
@@ -324,6 +350,7 @@ export const getMe = async (req, res, next) => {
     const userObj = user.toObject ? user.toObject() : { ...user._doc };
     userObj.businessType = businessType;
     userObj.businessName = businessName;
+    userObj.ownerName = ownerName;
     userObj.isDemo = isDemo;
 
     return success(res, { data: userObj });

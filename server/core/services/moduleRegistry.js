@@ -258,22 +258,26 @@ const businessModelMapping = {
   'pool_snooker': {
     Due: 'Due',
     Payment: 'Payment',
-    BookingSession: 'BookingSession'
+    BookingSession: 'BookingSession',
+    Resource: 'VenueResource'
   },
   'cricket_football': {
     Due: 'CricketFootballDue',
     Payment: 'CricketFootballPayment',
-    BookingSession: 'CricketFootballBookingSession'
+    BookingSession: 'CricketFootballBookingSession',
+    Resource: 'Turf'
   },
   pickleball: {
     Due: 'PickleballDue',
     Payment: 'PickleballPayment',
-    BookingSession: 'PickleballBookingSession'
+    BookingSession: 'PickleballBookingSession',
+    Resource: 'Court'
   },
   'gaming_zone': {
     Due: 'GamingZoneDue',
     Payment: 'GamingZonePayment',
-    BookingSession: 'GamingZoneBookingSession'
+    BookingSession: 'GamingZoneBookingSession',
+    Resource: 'GamingResource'
   }
 };
 

@@ -5,6 +5,9 @@ import { success, error, created } from '../../../core/utils/responseHelper.js';
 import { generateCustomerCode } from '../services/pricingService.js';
 import { hashPassword, generateTemporaryPassword } from '../../../core/utils/passwordHelper.js';
 
+// Round to 2 decimal places — prevents floating point artifacts like 0.9900000000000002
+const r2 = (val) => Math.round((val || 0) * 100) / 100;
+
 const checkAndIncrementCode = async (tenantId, baseCode) => {
   let counter = 1;
   let finalCode = baseCode;
@@ -45,14 +48,14 @@ export const getAllCustomers = async (req, res, next) => {
     const playersWithDues = await Promise.all(players.map(async (player) => {
       const pendingDues = await DueModel.aggregate([
         { $match: { tenantId: tenantObjectId, customerId: player._id, status: { $in: ['pending', 'partial'] } } },
-        { $group: { _id: null, total: { $sum: { $subtract: ['$amount', '$paidAmount'] } } } }
+        { $group: { _id: null, total: { $sum: { $round: [{ $subtract: ['$amount', '$paidAmount'] }, 2] } } } }
       ]);
       return {
         ...player,
         source: player.tenantId ? 'venue' : 'portal',
         // Only show dues scoped to the requesting tenant, not the global player.totalDue
         // which accumulates across ALL venues this player has visited
-        totalDue: pendingDues[0]?.total ?? 0
+        totalDue: Math.round((pendingDues[0]?.total ?? 0) * 100) / 100
       };
     }));
 
@@ -225,25 +228,6 @@ export const updateCustomer = async (req, res, next) => {
 
 /**
  * @swagger
- * /api/tenant/customers/:id:
- *   delete:
- *     tags: [Customers]
- *     summary: Delete customer
- */
-export const deleteCustomer = async (req, res, next) => {
-  try {
-    const player = await Player.findByIdAndDelete(req.params.id);
-    if (!player) {
-      return error(res, { statusCode: 404, message: 'Customer not found', code: 'NOT_FOUND' });
-    }
-    return success(res, { message: 'Customer deleted successfully' });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @swagger
  * /api/tenant/customers/:id/bookings:
  *   get:
  *     tags: [Customers]
@@ -274,7 +258,7 @@ export const getCustomerBookings = async (req, res, next) => {
  */
 export const payCustomerDues = async (req, res, next) => {
   try {
-    const { amount, mode } = req.body;
+    const { amount, mode, discount } = req.body;
     const player = await Player.findById(req.params.id);
     if (!player) {
       return error(res, { statusCode: 404, message: 'Customer not found', code: 'NOT_FOUND' });
@@ -295,41 +279,79 @@ export const payCustomerDues = async (req, res, next) => {
       return error(res, { statusCode: 400, message: 'No pending dues for this customer', code: 'NO_DUES' });
     }
 
-    const totalRemaining = pendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
-    const payAmount = amount ? Math.min(parseFloat(amount), totalRemaining) : totalRemaining;
+    const totalRemaining = r2(pendingDues.reduce((sum, d) => sum + r2(d.amount - d.paidAmount), 0));
 
-    if (payAmount <= 0) {
+    // Apply discount if provided (₹ amount to deduct from total).
+    // Discount is only allowed when paying the FULL remaining amount.
+    let discountAmount = 0;
+    if (discount) {
+      const parsedDiscount = Math.max(0, parseFloat(discount));
+      const parsedAmount = amount ? parseFloat(amount) : totalRemaining;
+      if (parsedAmount < totalRemaining) {
+        return error(res, { statusCode: 400, message: 'Discount can only be applied when clearing the full due amount. Enter the full amount or remove the discount.', code: 'DISCOUNT_PARTIAL_NOT_ALLOWED' });
+      }
+      discountAmount = r2(Math.min(parsedDiscount, totalRemaining));
+    }
+    const discountedTotal = r2(totalRemaining - discountAmount);
+    const payAmount = amount ? r2(Math.min(Math.max(0, parseFloat(amount)), discountedTotal)) : discountedTotal;
+
+    if (payAmount <= 0 && discountAmount <= 0) {
       return error(res, { statusCode: 400, message: 'Invalid payment amount', code: 'INVALID_AMOUNT' });
     }
 
+    // Distribute the discount proportionally across dues
+    let remainingDiscount = discountAmount;
     let remainingToPay = payAmount;
     const updatedDues = [];
 
     for (const due of pendingDues) {
-      if (remainingToPay <= 0) break;
+      if (remainingToPay <= 0 && remainingDiscount <= 0) break;
 
-      const dueRemaining = due.amount - due.paidAmount;
-      const payForThisDue = Math.min(remainingToPay, dueRemaining);
+      const dueRemaining = r2(due.amount - due.paidAmount);
 
-      // Create payment record
-      await PaymentModel.create({
-        tenantId: req.tenantId,
-        bookingSessionId: due.bookingSessionId,
-        customerId: due.customerId,
-        dueId: due._id,
-        amount: payForThisDue,
-        mode: mode || 'cash',
-        type: 'due_payment',
-        receivedBy: req.user.id,
-        receivedByName: req.user.name || 'staff'
-      });
+      // Apply proportional discount to this due
+      let discountForThisDue = 0;
+      if (remainingDiscount > 0 && totalRemaining > 0) {
+        const proportion = dueRemaining / totalRemaining;
+        if (remainingDiscount > 0 && proportion > 0) {
+          // Each due gets a fair share of the remaining discount proportional to its size.
+          // Formula: remainingDiscount * (dueRemaining / totalRemaining)
+          // Old bug: was dueRemaining * proportion which squared dueRemaining!
+          discountForThisDue = r2(Math.min(remainingDiscount * proportion, dueRemaining));
+          // Edge case: rounding can leave 1-2 paise undistributed; assign to last due
+          if (remainingDiscount > 0 && discountForThisDue <= 0) {
+            discountForThisDue = r2(Math.min(remainingDiscount, dueRemaining));
+          }
+          remainingDiscount = r2(remainingDiscount - discountForThisDue);
+        }
+      }
 
-      // Update due
-      due.paidAmount += payForThisDue;
-      due.partialPayments.push({ amount: payForThisDue, mode: mode || 'cash', paidAt: new Date() });
+      // The payable amount for this due after discount
+      const effectiveDueRemaining = r2(dueRemaining - discountForThisDue);
+      const payForThisDue = r2(Math.min(remainingToPay, effectiveDueRemaining));
 
-      const remainingAfter = due.amount - due.paidAmount;
-      if (remainingAfter <= 0) {
+      if (payForThisDue > 0) {
+        // Create payment record
+        await PaymentModel.create({
+          tenantId: req.tenantId,
+          bookingSessionId: due.bookingSessionId,
+          customerId: due.customerId,
+          dueId: due._id,
+          amount: payForThisDue,
+          mode: mode || 'cash',
+          type: 'due_payment',
+          receivedBy: req.user.id,
+          receivedByName: req.user.name || 'staff'
+        });
+
+        due.paidAmount = r2(due.paidAmount + payForThisDue);
+        due.partialPayments.push({ amount: payForThisDue, mode: mode || 'cash', paidAt: new Date() });
+      }
+
+      // If discount + paid amount covers the full due, mark as paid.
+      // discountForThisDue is waived, not added to paidAmount, so we must account for it.
+      const totalCovered = r2(r2(due.amount - due.paidAmount) - discountForThisDue);
+      if (totalCovered <= 0) {
         due.status = 'paid';
         due.paidAt = new Date();
         due.paymentMode = mode || 'cash';
@@ -339,21 +361,23 @@ export const payCustomerDues = async (req, res, next) => {
 
       await due.save();
 
-      // Update session payment status
+      // Update session payment status (also handle 'partial' since discounts
+      // can fully clear a session that previously had partial payment)
       const session = await BookingSessionModel.findById(due.bookingSessionId);
-      if (session && (session.paymentStatus === 'due' || session.paymentStatus === 'pending')) {
+      if (session && ['pending', 'due', 'partial'].includes(session.paymentStatus)) {
         const allDuesForSession = await DueModel.find({ bookingSessionId: due.bookingSessionId });
         const allPaid = allDuesForSession.every(d => d.status === 'paid' || d.status === 'waived');
         session.paymentStatus = allPaid ? 'paid' : 'partial';
         await session.save();
       }
 
-      remainingToPay -= payForThisDue;
+      remainingToPay = r2(remainingToPay - payForThisDue);
       updatedDues.push(due);
     }
 
     // Update player totalDue
-    player.totalDue = Math.max(0, (player.totalDue || 0) - payAmount);
+    const totalPaidOrDiscounted = r2(payAmount + discountAmount);
+    player.totalDue = r2(Math.max(0, (player.totalDue || 0) - totalPaidOrDiscounted));
     await player.save();
 
     return success(res, {
@@ -361,9 +385,12 @@ export const payCustomerDues = async (req, res, next) => {
         customer: player,
         dues: updatedDues,
         totalPaid: payAmount,
-        remainingDue: Math.max(0, totalRemaining - payAmount)
+        discountApplied: discountAmount,
+        remainingDue: r2(Math.max(0, totalRemaining - payAmount - discountAmount))
       },
-      message: `₹${payAmount} paid successfully`
+      message: discountAmount > 0
+        ? `₹${payAmount} paid (₹${discountAmount} discount applied) successfully`
+        : `₹${payAmount} paid successfully`
     });
   } catch (err) {
     next(err);

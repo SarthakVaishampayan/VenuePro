@@ -6,7 +6,7 @@ import Select from '../../components/common/Select';
 import { PageLoader } from '../../components/common/Loader';
 import {
   TrendingUp, TrendingDown, PieChart, BarChart3, DollarSign, Receipt,
-  Users, Clock, Target, Download, Calendar, Building2, Activity
+  Clock, Download
 } from 'lucide-react';
 
 export default function Reports() {
@@ -23,13 +23,9 @@ export default function Reports() {
   const [resourceUsage, setResourceUsage] = useState(null);
   const [expenseBreakdown, setExpenseBreakdown] = useState(null);
 
-  // Advanced analytics (Phase 11)
-  const [clvData, setClvData] = useState([]);
+  // Advanced analytics
   const [peakHours, setPeakHours] = useState(null);
-  const [branchPL, setBranchPL] = useState(null);
-  const [staffPerf, setStaffPerf] = useState([]);
   const [customRange, setCustomRange] = useState(null);
-  const [heatmap, setHeatmap] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -37,38 +33,25 @@ export default function Reports() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      // Standard reports always
+      // Standard reports always — all respect the selected date filter
+      const filterParam = filter === 'custom' && customStart && customEnd
+        ? `filter=custom&startDate=${customStart}&endDate=${customEnd}`
+        : `filter=${filter}`;
       const promises = [
-        ownerApi.get(`/reports/revenue?filter=${filter}`),
-        ownerApi.get(`/reports/profit-loss?filter=${filter}`),
-        ownerApi.get('/reports/revenue-trend?period=daily&count=7'),
-        ownerApi.get('/reports/payment-split'),
-        ownerApi.get('/reports/resource-usage'),
-        ownerApi.get('/reports/expense-breakdown')
+        ownerApi.get(`/reports/revenue?${filterParam}`),
+        ownerApi.get(`/reports/profit-loss?${filterParam}`),
+        ownerApi.get(`/reports/revenue-trend?${filterParam}`),
+        ownerApi.get(`/reports/payment-split?${filterParam}`),
+        ownerApi.get(`/reports/resource-usage?${filterParam}`),
+        ownerApi.get(`/reports/expense-breakdown?${filterParam}`)
       ];
 
       // Advanced analytics based on active tab
-      if (activeTab === 'customers') {
-        promises.push(ownerApi.get('/analytics/customer-lifetime-value?limit=10'));
-      }
       if (activeTab === 'hours') {
         promises.push(ownerApi.get('/analytics/peak-hours'));
       }
-      if (activeTab === 'branches') {
-        const dateParam = filter !== 'custom' ? `?dateFrom=${getDateFrom(filter)}` :
-          `?dateFrom=${customStart}&dateTo=${customEnd}`;
-        promises.push(ownerApi.get(`/analytics/profit-loss-by-branch${dateParam}`));
-      }
-      if (activeTab === 'staff') {
-        const dateParam = filter !== 'custom' ? `?dateFrom=${getDateFrom(filter)}` :
-          `?dateFrom=${customStart}&dateTo=${customEnd}`;
-        promises.push(ownerApi.get(`/analytics/staff-performance${dateParam}`));
-      }
       if (activeTab === 'overview' && filter === 'custom' && customStart && customEnd) {
         promises.push(ownerApi.get(`/analytics/custom-range?startDate=${customStart}&endDate=${customEnd}`));
-      }
-      if (activeTab === 'resources') {
-        promises.push(ownerApi.get('/analytics/resource-heatmap'));
       }
 
       const results = await Promise.all(promises);
@@ -82,25 +65,10 @@ export default function Reports() {
 
       // Parse advanced results
       let idx = 6;
-      if (activeTab === 'customers' && results[idx]) { setClvData(results[idx].data.data || []); idx++; }
       if (activeTab === 'hours' && results[idx]) { setPeakHours(results[idx].data.data); idx++; }
-      if (activeTab === 'branches' && results[idx]) { setBranchPL(results[idx].data.data); idx++; }
-      if (activeTab === 'staff' && results[idx]) { setStaffPerf(results[idx].data.data || []); idx++; }
       if (activeTab === 'overview' && filter === 'custom' && results[idx]) { setCustomRange(results[idx].data.data); idx++; }
-      if (activeTab === 'resources' && results[idx]) { setHeatmap(results[idx].data.data || []); idx++; }
     } catch (err) { console.error('Failed to fetch reports:', err); }
     finally { setLoading(false); }
-  };
-
-  const getDateFrom = (f) => {
-    const now = new Date();
-    switch (f) {
-      case 'today': return now.toISOString().split('T')[0];
-      case 'yesterday': return new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
-      case 'week': return new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
-      case 'month': return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      default: return '';
-    }
   };
 
   useEffect(() => { fetchReports(); }, [filter, activeTab, customStart, customEnd]);
@@ -136,13 +104,17 @@ export default function Reports() {
     { value: 'custom', label: 'Custom Range' }
   ];
 
+  const filterLabels = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    week: 'This Week',
+    month: 'This Month',
+    custom: 'Custom Range'
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'customers', label: 'Customer CLV', icon: Users },
-    { id: 'hours', label: 'Peak Hours', icon: Clock },
-    { id: 'resources', label: 'Resources', icon: Target },
-    { id: 'branches', label: 'Branches', icon: Building2 },
-    { id: 'staff', label: 'Staff Perf', icon: Activity }
+    { id: 'hours', label: 'Peak Hours', icon: Clock }
   ];
 
   return (
@@ -297,7 +269,7 @@ export default function Reports() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Trend */}
             <Card>
-              <CardHeader title="Revenue Trend" subtitle="Last 7 days" />
+              <CardHeader title="Revenue Trend" subtitle={['today', 'yesterday'].includes(filter) ? 'Last 7 days' : (filterLabels[filter] || 'Last 7 days')} />
               {revenueTrend.length === 0 ? (
                 <p className="text-text-muted text-sm py-8 text-center">No data available</p>
               ) : (
@@ -321,7 +293,7 @@ export default function Reports() {
 
             {/* Payment Split */}
             <Card>
-              <CardHeader title="Payment Split" subtitle="All time" icon={PieChart} />
+              <CardHeader title="Payment Split" subtitle={filterLabels[filter] || 'All time'} icon={PieChart} />
               {paymentSplit ? (
                 <div className="space-y-3">
                   {Object.entries(paymentSplit.split || {}).map(([mode, amount]) => {
@@ -415,56 +387,6 @@ export default function Reports() {
       )}
 
       {/* ============================================================ */}
-      {/* CUSTOMER CLV TAB */}
-      {/* ============================================================ */}
-      {activeTab === 'customers' && (
-        <Card>
-          <CardHeader title="Customer Lifetime Value" subtitle="Top customers by total spend" />
-          {clvData.length === 0 ? (
-            <p className="text-text-muted text-sm py-8 text-center">Not enough data yet (need 3+ completed sessions per customer).</p>
-          ) : (
-            <div className="overflow-x-auto -mx-6 -mb-6">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-surface-secondary/50">
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-text-muted uppercase">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-text-muted uppercase">Code</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Sessions</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Total Spent</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Avg/Session</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Days Active</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">₹/Day</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {clvData.map((c, i) => (
-                    <tr key={c.customerId} className="hover:bg-surface-secondary/50 transition-colors">
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                            i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-amber-700' : 'bg-surface-tertiary text-text-muted'
-                          }`}>
-                            {i + 1}
-                          </span>
-                          <span className="text-sm font-medium text-text-primary">{c.customerName}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-sm text-text-muted font-mono">{c.customerCode}</td>
-                      <td className="px-6 py-3 text-sm text-right font-medium text-text-primary">{c.sessionCount}</td>
-                      <td className="px-6 py-3 text-sm text-right font-medium text-emerald-600">₹{c.totalSpent.toLocaleString()}</td>
-                      <td className="px-6 py-3 text-sm text-right text-text-muted">₹{c.avgSessionValue}</td>
-                      <td className="px-6 py-3 text-sm text-right text-text-muted">{c.daysActive}</td>
-                      <td className="px-6 py-3 text-sm text-right font-medium text-text-primary">₹{c.valuePerDay}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ============================================================ */}
       {/* PEAK HOURS TAB */}
       {/* ============================================================ */}
       {activeTab === 'hours' && peakHours && (
@@ -510,177 +432,6 @@ export default function Reports() {
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* BRANCH P&L TAB */}
-      {/* ============================================================ */}
-      {activeTab === 'branches' && branchPL && (
-        <>
-          {/* Total Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <p className="text-xs text-text-muted">Total Revenue</p>
-              <p className="text-xl font-bold text-text-primary">₹{branchPL.totals?.totalRevenue?.toLocaleString() || '0'}</p>
-            </Card>
-            <Card>
-              <p className="text-xs text-text-muted">Total Expenses</p>
-              <p className="text-xl font-bold text-text-primary">₹{branchPL.totals?.totalExpenses?.toLocaleString() || '0'}</p>
-            </Card>
-            <Card>
-              <p className="text-xs text-text-muted">Total Profit</p>
-              <p className={`text-xl font-bold ${(branchPL.totals?.profit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                ₹{branchPL.totals?.profit?.toLocaleString() || '0'}
-              </p>
-            </Card>
-          </div>
-
-          {/* Branch breakdown */}
-          <div className="grid grid-cols-1 gap-4">
-            {branchPL.branches?.map((b) => (
-              <Card key={b.branchId || 'main'}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-text-muted" />
-                    <h3 className="font-semibold text-text-primary">{b.branchName}</h3>
-                    <span className="text-xs text-text-muted font-mono">{b.branchCode}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-text-muted">{b.paymentCount} payments</span>
-                    <span className="text-text-muted">{b.expenseCount} expenses</span>
-                    <span className={`font-semibold ${b.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {b.profit >= 0 ? '+' : ''}{b.profitMargin}%
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <p className="text-xs text-text-muted">Revenue</p>
-                    <p className="text-base font-bold text-text-primary">₹{b.totalRevenue.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Expenses</p>
-                    <p className="text-base font-bold text-text-primary">₹{b.totalExpenses.toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex gap-6">
-                  <div className="flex-1">
-                    <p className="text-xs text-text-muted mb-1">Payment Modes</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(b.paymentModes || {}).map(([mode, amt]) => (
-                        <span key={mode} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 text-xs rounded-full capitalize">
-                          {mode}: ₹{amt.toLocaleString()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-text-muted mb-1">Expense Categories</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(b.expenseCategories || {}).map(([cat, amt]) => (
-                        <span key={cat} className="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 text-xs rounded-full capitalize">
-                          {cat}: ₹{amt.toLocaleString()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ============================================================ */}
-      {/* STAFF PERFORMANCE TAB */}
-      {/* ============================================================ */}
-      {activeTab === 'staff' && (
-        <Card>
-          <CardHeader title="Staff Performance" subtitle="Revenue generated by each staff member" />
-          {staffPerf.length === 0 ? (
-            <p className="text-text-muted text-sm py-8 text-center">No staff performance data available.</p>
-          ) : (
-            <div className="overflow-x-auto -mx-6 -mb-6">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-surface-secondary/50">
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-text-muted uppercase">Staff</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-text-muted uppercase">Role</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Sessions</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Revenue</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Avg/Session</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">Salary</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-text-muted uppercase">ROI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {staffPerf.map((s) => (
-                    <tr key={s.staffId} className="hover:bg-surface-secondary/50 transition-colors">
-                      <td className="px-6 py-3 text-sm font-medium text-text-primary">{s.name}</td>
-                      <td className="px-6 py-3 text-sm capitalize text-text-muted">{s.role}</td>
-                      <td className="px-6 py-3 text-sm text-right text-text-primary">{s.sessionCount}</td>
-                      <td className="px-6 py-3 text-sm text-right font-medium text-emerald-600">₹{s.totalRevenue.toLocaleString()}</td>
-                      <td className="px-6 py-3 text-sm text-right text-text-muted">₹{s.avgSessionValue}</td>
-                      <td className="px-6 py-3 text-sm text-right text-text-muted">₹{s.monthlySalary.toLocaleString()}</td>
-                      <td className="px-6 py-3 text-sm text-right">
-                        <span className={`font-medium ${s.roi >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {s.roi}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ============================================================ */}
-      {/* RESOURCES TAB */}
-      {/* ============================================================ */}
-      {activeTab === 'resources' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {heatmap.map((r) => {
-            const maxCount = Math.max(...r.hourlyUtilization.map(h => h.count), 1);
-            return (
-              <Card key={r.resourceId}>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-text-primary">{r.resourceName}</h3>
-                  <span className="text-xs text-text-muted capitalize">{r.category}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-                  <div><span className="text-text-muted">{r.totalSessions} sessions</span></div>
-                  <div><span className="text-text-muted">{Math.round(r.utilizationRate * 100)}% util</span></div>
-                  <div><span className="text-emerald-600 font-medium">₹{r.totalRevenue.toLocaleString()}</span></div>
-                </div>
-                {/* Mini heatmap - 24 hours */}
-                <div className="flex gap-0.5 h-8">
-                  {r.hourlyUtilization.map((h) => {
-                    const intensity = maxCount > 0 ? (h.count / maxCount) * 100 : 0;
-                    return (
-                      <div key={h.hour} className="flex-1 relative group">
-                        <div
-                          className="w-full h-full rounded-sm cursor-pointer transition-all"
-                          style={{
-                            backgroundColor: intensity > 75 ? '#059669' : intensity > 50 ? '#10b981' : intensity > 25 ? '#6ee7b7' : '#e5e7eb',
-                            opacity: intensity > 0 ? 0.7 + (intensity / 300) : 0.3
-                          }}
-                        />
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          {h.label}: {h.count} sessions
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-text-muted mt-1">Hourly utilization (24h)</p>
-              </Card>
-            );
-          })}
-          {heatmap.length === 0 && (
-            <div className="col-span-full text-center py-12 text-text-muted">No resource utilization data available.</div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

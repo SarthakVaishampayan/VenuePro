@@ -328,7 +328,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
           name: plan.name,
           key: plan.key,
           prices: plan.prices,
-          limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 5, staff: plan.limits?.staff || 2 }
+          limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 2, staff: plan.limits?.staff || 2 }
         },
         billingCycle,
         amount,
@@ -367,7 +367,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
             name: plan.name,
             key: plan.key,
             prices: plan.prices,
-            limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 5, staff: plan.limits?.staff || 2 }
+            limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 2, staff: plan.limits?.staff || 2 }
           };
         }
       }

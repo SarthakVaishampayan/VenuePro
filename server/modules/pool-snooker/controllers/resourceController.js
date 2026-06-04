@@ -68,7 +68,7 @@ export const createResource = async (req, res, next) => {
     if (tenant) {
       const resourceCount = await VenueResource.countDocuments({ tenantId: req.tenantId });
       if (resourceCount >= tenant.maxResources) {
-        const planNames = { 5: 'Free / Trial', 15: 'Starter', 50: 'Professional', 9999: 'Enterprise' };
+        const planNames = { 2: 'Free / Trial', 15: 'Starter', 50: 'Professional', 9999: 'Enterprise' };
         const planName = planNames[tenant.maxResources] || 'current';
         return error(res, {
           statusCode: 403,

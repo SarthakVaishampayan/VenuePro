@@ -44,14 +44,14 @@ const SUBSCRIPTION_PLANS = [
     description: 'For trial users and micro-venues. Watermarked receipts.',
     prices: { monthly: 0, quarterly: 0, yearly: 0 },
     features: [
-      { key: 'resources', name: 'Resources', description: 'Up to 5 resources', included: true },
+      { key: 'resources', name: 'Resources', description: 'Up to 2 resources', included: true },
       { key: 'staff', name: 'Staff accounts', description: 'Up to 2 staff', included: true },
       { key: 'reports', name: 'Basic reports', description: 'Daily & monthly reports', included: true },
       { key: 'receipts', name: 'Receipts', description: 'Watermarked receipts', included: true },
       { key: 'branding', name: 'White-labeling', description: 'Remove VenuePro branding', included: false },
       { key: 'api', name: 'API access', description: 'REST API & webhooks', included: false }
     ],
-    limits: { branches: 1, resources: 5, staff: 2, storage: 50, apiRequests: 0 },
+    limits: { branches: 1, resources: 2, staff: 2, storage: 50, apiRequests: 0 },
     trialDays: 14,
     sortOrder: 0,
     isActive: true,

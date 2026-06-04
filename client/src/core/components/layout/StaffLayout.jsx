@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useStaffAuth } from '../../context/StaffAuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { getBusinessLabels } from '../../services/businessLabels';
 import NotificationBell from '../notifications/NotificationBell';
 
 // Navigation items — shown based on staff permissions
@@ -35,6 +36,8 @@ export default function StaffLayout() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const labels = getBusinessLabels(user?.businessType);
 
   const permissions = user?.permissions || {};
   const navItems = buildNavItems(permissions);
@@ -72,13 +75,18 @@ export default function StaffLayout() {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 h-16 border-b border-white/10 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
+        <div className="flex items-center gap-3 px-6 py-3 h-auto min-h-[72px] border-b border-white/10 flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm">VP</span>
           </div>
-          <div>
-            <h1 className="text-white font-semibold text-sm">VenuePro</h1>
-            <p className="text-sidebar-text text-xs opacity-60">Staff Portal</p>
+          <div className="min-w-0 space-y-0.5">
+            <h1 className="text-white font-semibold text-sm truncate max-w-[160px]">{user?.businessName || 'VenuePro'}</h1>
+            <p className="text-sidebar-text text-xs opacity-60 truncate max-w-[160px]">{labels.businessTypeName} · Staff</p>
+            {user?.ownerName && (
+              <p className="text-amber-300/80 text-[10px] truncate max-w-[160px] font-medium">
+                Owned by {user.ownerName}
+              </p>
+            )}
           </div>
         </div>
 
@@ -172,9 +180,14 @@ export default function StaffLayout() {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
                   <div className="absolute right-0 mt-1 z-20 w-56 bg-surface rounded-xl shadow-lg border border-border animate-scaleIn overflow-hidden">
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className="px-4 py-3 border-b border-border space-y-1">
                       <p className="text-sm font-medium text-text-primary">{user?.name}</p>
                       <p className="text-xs text-text-muted capitalize">{user?.role}</p>
+                      {user?.ownerName && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium pt-0.5">
+                          Owned by {user.ownerName}
+                        </p>
+                      )}
                     </div>
                     <div className="p-1">
                       <button

@@ -52,7 +52,12 @@ export const roundToNearest5 = (amount) => {
 export const getPricingMode = (nightStartHour = 18, nightEndHour = 6) => {
   const now = new Date();
   const hour = now.getHours();
-  return (hour >= nightStartHour || hour < nightEndHour) ? 'night' : 'day';
+  // If night crosses midnight (e.g., 18 to 6), use OR logic.
+  // If night is within same day (e.g., 2 to 6), use AND logic.
+  if (nightStartHour > nightEndHour) {
+    return (hour >= nightStartHour || hour < nightEndHour) ? 'night' : 'day';
+  }
+  return (hour >= nightStartHour && hour < nightEndHour) ? 'night' : 'day';
 };
 
 /**

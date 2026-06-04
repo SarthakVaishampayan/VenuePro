@@ -1,5 +1,5 @@
+import mongoose from 'mongoose';
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
-import VenueResource from '../models/VenueResource.js';
 import Expense from '../models/Expense.js';
 import Player from '../../../core/models/Player.js';
 import { success, error } from '../../../core/utils/responseHelper.js';
@@ -14,13 +14,15 @@ import { startOfDay, endOfDay } from '../../../core/utils/dateHelper.js';
  */
 export const getDashboard = async (req, res, next) => {
   try {
-    const tenantId = req.tenantId;
+    // Cast tenantId to ObjectId explicitly — aggregate() does NOT auto-cast like find()
+    const tenantId = new mongoose.Types.ObjectId(req.tenantId);
     const todayStart = startOfDay();
     const todayEnd = endOfDay();
 
     const BookingSessionModel = getBusinessModel(req, 'BookingSession');
     const PaymentModel = getBusinessModel(req, 'Payment');
     const DueModel = getBusinessModel(req, 'Due');
+    const ResourceModel = getBusinessModel(req, 'Resource');
 
     const [
       activeSessions,
@@ -32,8 +34,8 @@ export const getDashboard = async (req, res, next) => {
       completedSessions
     ] = await Promise.all([
       BookingSessionModel.countDocuments({ tenantId, bookingStatus: 'in_progress' }),
-      VenueResource.countDocuments({ tenantId }),
-      VenueResource.countDocuments({ tenantId, status: 'available' }),
+      ResourceModel.countDocuments({ tenantId }),
+      ResourceModel.countDocuments({ tenantId, status: 'available' }),
       PaymentModel.aggregate([
         { $match: { tenantId, createdAt: { $gte: todayStart, $lte: todayEnd } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }

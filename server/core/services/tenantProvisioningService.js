@@ -61,7 +61,7 @@ class TenantProvisioningService {
       timezone: data.timezone || 'Asia/Kolkata',
       currency: data.currency || 'INR',
       maxBranches: plan.limits.branches || 1,
-      maxResources: plan.limits.resources || 5,
+      maxResources: plan.limits.resources || 2,
       maxStaff: plan.limits.staff || 2,
       isDemo: data.isDemo || false,
       demoExpiresAt: data.isDemo ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null,

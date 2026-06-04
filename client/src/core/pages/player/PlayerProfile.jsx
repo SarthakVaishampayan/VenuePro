@@ -68,7 +68,7 @@ export default function PlayerProfile() {
     setError('');
     setSuccess('');
     try {
-      const { data } = await playerApi.put('/auth/profile', {
+      const { data } = await playerApi.patch('/auth/profile', {
         fullName: profile.fullName,
         nickname: profile.nickname || undefined,
         email: profile.email || undefined,
@@ -312,7 +312,7 @@ export default function PlayerProfile() {
               />
             </div>
             <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => { setShowPasswordForm(false); setPasswordError(''); }}>
+              <Button variant="secondary" type="button" onClick={() => { setShowPasswordForm(false); setPasswordError(''); }}>
                 Cancel
               </Button>
               <Button type="submit" loading={changingPassword}>

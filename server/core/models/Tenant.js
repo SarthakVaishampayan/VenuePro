@@ -106,7 +106,7 @@ const tenantSchema = new mongoose.Schema({
   },
   maxResources: {
     type: Number,
-    default: 5
+    default: 2
   },
   maxStaff: {
     type: Number,

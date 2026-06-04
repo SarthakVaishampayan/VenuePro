@@ -449,7 +449,7 @@ router.post('/:id/convert', superAdminAuth, validateObjectId('id'), validateBody
       'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
       'subscription.billingCycle': billingCycle,
       maxBranches: plan.limits.branches || 1,
-      maxResources: plan.limits.resources || 5,
+      maxResources: plan.limits.resources || 2,
       maxStaff: plan.limits.staff || 2
     });
 

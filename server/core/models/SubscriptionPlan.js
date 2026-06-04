@@ -8,7 +8,7 @@ const priceSchema = new mongoose.Schema({
 
 const limitSchema = new mongoose.Schema({
   branches: { type: Number, default: 1, min: 0 },
-  resources: { type: Number, default: 5, min: 0 },
+  resources: { type: Number, default: 2, min: 0 },
   staff: { type: Number, default: 2, min: 0 },
   storage: { type: Number, default: 100, min: 0 }, // MB
   apiRequests: { type: Number, default: 1000, min: 0 }

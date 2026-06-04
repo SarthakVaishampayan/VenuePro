@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, Building2, IndianRupee, Timer, CreditCard, AlertCircle, ChevronRight, Play, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Building2, IndianRupee, CreditCard, AlertCircle, Play, CheckCircle } from 'lucide-react';
 import { PageLoader } from '../../components/common/Loader';
 import playerApi from '../../services/playerApi';
 
@@ -42,16 +42,6 @@ const paymentStatusColors = {
   due: 'text-red-600 dark:text-red-400',
   partial: 'text-orange-600 dark:text-orange-400'
 };
-
-function formatDuration(minutes) {
-  if (!minutes || minutes <= 0) return null;
-  if (minutes >= 60) {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return m ? `${h}h ${m}m` : `${h}h`;
-  }
-  return `${minutes}m`;
-}
 
 function formatCurrency(amount) {
   return amount != null ? `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : null;
@@ -134,12 +124,6 @@ export default function PlayerBookings() {
             const status = statusConfig[session.bookingStatus] || statusConfig.completed;
             const StatusIcon = status.icon;
             const startTime = new Date(session.startTimeRounded || session.startTime || session.createdAt);
-            const endTime = session.endTime ? new Date(session.endTime) : null;
-            // For timer-based sessions (bookedDuration > 0), use the booked duration
-            // instead of calculating from (endTime - startTimeRounded), which can
-            // overcount due to startTimeRounded being rounded down while endTime
-            // is calculated from the actual (unrounded) start time.
-            const duration = session.durationMinutes || session.bookedDuration || (endTime ? Math.round((endTime - startTime) / 60000) : null);
             const isActive = session.bookingStatus === 'in_progress';
 
             return (
@@ -183,10 +167,7 @@ export default function PlayerBookings() {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5" />
-                          {startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                          {endTime && (
-                            <> — {endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>
-                          )}
+                          Started at {startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     </div>
@@ -194,19 +175,13 @@ export default function PlayerBookings() {
                 </div>
 
                 {/* Bottom section: Detailed stats for completed/active sessions */}
-                {(duration || session.finalAmount > 0 || session.discount > 0) && (
+                {(session.finalAmount > 0 || session.discount > 0) && (
                   <div className="border-t border-border bg-surface-secondary/50 px-5 py-3">
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                      {duration && (
-                        <span className="flex items-center gap-1.5 text-text-muted">
-                          <Timer className="w-3.5 h-3.5" />
-                          Duration: <strong className="text-text-primary">{formatDuration(duration)}</strong>
-                        </span>
-                      )}
-                      {session.rawAmount > 0 && (
+                      {(session.finalAmount > 0 || session.discount > 0) && (
                         <span className="flex items-center gap-1.5 text-text-muted">
                           <IndianRupee className="w-3.5 h-3.5" />
-                          Amount: <strong className="text-text-primary">{formatCurrency(session.rawAmount)}</strong>
+                          Amount: <strong className="text-text-primary">{formatCurrency((session.finalAmount || 0) + (session.discount || 0))}</strong>
                         </span>
                       )}
                       {session.discount > 0 && (

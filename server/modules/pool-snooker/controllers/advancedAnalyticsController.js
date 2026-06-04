@@ -1,10 +1,10 @@
+import mongoose from 'mongoose';
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
 import Expense from '../models/Expense.js';
 import Player from '../../../core/models/Player.js';
 import StaffUser from '../models/StaffUser.js';
 import StaffShift from '../models/StaffShift.js';
 import Branch from '../models/Branch.js';
-import VenueResource from '../models/VenueResource.js';
 import { success } from '../../../core/utils/responseHelper.js';
 
 const getDateRange = (startDate, endDate) => {
@@ -27,9 +27,12 @@ export const getCustomerLifetimeValue = async (req, res, next) => {
 
     const BookingSessionModel = getBusinessModel(req, 'BookingSession');
 
+    // Cast tenantId for aggregate() — does NOT auto-cast like find()
+    const tenantObjectId = new mongoose.Types.ObjectId(req.tenantId);
+
     // Get all customers who have completed sessions
     const sessions = await BookingSessionModel.aggregate([
-      { $match: { tenantId: req.tenantId, bookingStatus: 'completed' } },
+      { $match: { tenantId: tenantObjectId, bookingStatus: 'completed' } },
       { $group: {
         _id: '$customerId',
         sessionCount: { $sum: 1 },
@@ -155,17 +158,43 @@ export const getResourceHeatmap = async (req, res, next) => {
     const { start, end } = getDateRange(dateFrom, dateTo);
 
     const BookingSessionModel = getBusinessModel(req, 'BookingSession');
-    const resources = await VenueResource.find({ tenantId: req.tenantId }).lean();
+    const ResourceModel = getBusinessModel(req, 'Resource');
+
     const sessions = await BookingSessionModel.find({
       tenantId: req.tenantId,
       startTime: { $gte: start, $lte: end },
       bookingStatus: { $in: ['completed', 'in_progress'] }
     }).lean();
 
-    const heatmap = resources.map(resource => {
-      const resourceSessions = sessions.filter(s =>
-        s.resourceId.toString() === resource._id.toString()
-      );
+    // Aggregate sessions by resourceId, using resourceNameSnapshot as fallback
+    const sessionGroups = {};
+    sessions.forEach(s => {
+      const rid = s.resourceId?.toString();
+      if (!rid) return;
+      if (!sessionGroups[rid]) {
+        sessionGroups[rid] = {
+          resourceId: s.resourceId,
+          resourceName: s.resourceNameSnapshot || 'Unknown',
+          sessions: []
+        };
+      }
+      sessionGroups[rid].sessions.push(s);
+    });
+
+    // Enrich with resource details (category) for resources that still exist
+    const resourceIds = Object.values(sessionGroups).map(g => g.resourceId).filter(Boolean);
+    let resourceMap = {};
+    if (resourceIds.length > 0) {
+      const resources = await ResourceModel.find({
+        _id: { $in: resourceIds },
+        tenantId: req.tenantId
+      }).lean();
+      resources.forEach(r => { resourceMap[r._id.toString()] = r; });
+    }
+
+    const heatmap = Object.values(sessionGroups).map(group => {
+      const resourceInfo = resourceMap[group.resourceId?.toString()];
+      const resourceSessions = group.sessions;
 
       // Hourly utilization for this resource
       const hourlyUtil = {};
@@ -181,9 +210,9 @@ export const getResourceHeatmap = async (req, res, next) => {
       const totalMinutes = resourceSessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
 
       return {
-        resourceId: resource._id,
-        resourceName: resource.name,
-        category: resource.category,
+        resourceId: group.resourceId,
+        resourceName: resourceInfo?.name || group.resourceName,
+        category: resourceInfo?.category || 'standard',
         totalSessions: resourceSessions.length,
         totalMinutes,
         avgDuration: resourceSessions.length > 0 ? Math.round(totalMinutes / resourceSessions.length) : 0,
@@ -441,6 +470,7 @@ export const exportCSV = async (req, res, next) => {
 
     const PaymentModel = getBusinessModel(req, 'Payment');
     const BookingSessionModel = getBusinessModel(req, 'BookingSession');
+    const tenantObjectId = new mongoose.Types.ObjectId(req.tenantId);
 
     let rows = [];
     let headers = [];
@@ -495,7 +525,7 @@ export const exportCSV = async (req, res, next) => {
 
       headers = ['Name', 'Code', 'Phone', 'Email', 'Total Spent', 'Total Due', 'Sessions', 'Registered'];
       const sessionCounts = await BookingSessionModel.aggregate([
-        { $match: { tenantId: req.tenantId } },
+        { $match: { tenantId: tenantObjectId } },
         { $group: { _id: '$customerId', count: { $sum: 1 } } }
       ]);
       const sessionMap = {};

@@ -24,6 +24,7 @@ export default function StaffCustomers() {
   const [showPayDues, setShowPayDues] = useState(false);
   const [payDuesCustomer, setPayDuesCustomer] = useState(null);
   const [payDuesAmount, setPayDuesAmount] = useState('');
+  const [payDuesDiscount, setPayDuesDiscount] = useState('');
   const [payDuesMode, setPayDuesMode] = useState('cash');
   const [payingDues, setPayingDues] = useState(false);
   const [payDuesError, setPayDuesError] = useState('');
@@ -53,6 +54,7 @@ export default function StaffCustomers() {
   const openPayDues = (customer) => {
     setPayDuesCustomer(customer);
     setPayDuesAmount('');
+    setPayDuesDiscount('');
     setPayDuesMode('cash');
     setPayDuesError('');
     setShowPayDues(true);
@@ -64,7 +66,8 @@ export default function StaffCustomers() {
     setPayDuesError('');
     try {
       const amount = payDuesAmount ? parseFloat(payDuesAmount) : undefined;
-      const { data } = await staffApi.post(`/customers/${payDuesCustomer._id}/pay-dues`, { amount, mode: payDuesMode });
+      const discount = payDuesDiscount ? parseFloat(payDuesDiscount) : undefined;
+      await staffApi.post(`/customers/${payDuesCustomer._id}/pay-dues`, { amount, discount, mode: payDuesMode });
       setShowPayDues(false);
       setExpandedId(null);
       setCustomerDues(prev => ({ ...prev, [payDuesCustomer._id]: [] }));
@@ -301,26 +304,50 @@ export default function StaffCustomers() {
           const modalDues = customerDues[payDuesCustomer._id] || [];
           const modalPendingDues = modalDues.filter(d => d.status === 'pending' || d.status === 'partial');
           const modalTotalPending = modalPendingDues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+          const discountVal = parseFloat(payDuesDiscount) || 0;
+          const effectiveTotal = Math.max(0, modalTotalPending - discountVal);
 
           return (
             <div className="space-y-4">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm space-y-1">
                 <p className="text-amber-800 dark:text-amber-300 font-medium">
                   Pending Dues: ₹{modalTotalPending.toLocaleString()}
                 </p>
+                {discountVal > 0 && (
+                  <p className="text-amber-700 dark:text-amber-400 text-xs">
+                    After Discount: <span className="font-semibold">₹{effectiveTotal.toLocaleString()}</span>
+                  </p>
+                )}
                 <p className="text-amber-700 dark:text-amber-400 mt-1 text-xs">
                   Enter an amount to pay. Leave empty to clear all pending dues.
                 </p>
               </div>
               <Input
-                label={`Amount (leave empty for full payment of ₹${modalTotalPending.toLocaleString()})`}
+                label={`Amount (leave empty for full payment of ₹${effectiveTotal.toLocaleString()})`}
                 type="number"
                 value={payDuesAmount}
-                onChange={(e) => setPayDuesAmount(e.target.value)}
+                onChange={(e) => {
+                  setPayDuesAmount(e.target.value);
+                  // If entering a partial amount, clear any discount (discount only for full payment)
+                  if (e.target.value && parseFloat(e.target.value) < modalTotalPending) {
+                    setPayDuesDiscount('');
+                  }
+                }}
                 min="0"
-                max={modalTotalPending || 0}
+                max={effectiveTotal || 0}
                 step="0.5"
               />
+              {(!payDuesAmount || parseFloat(payDuesAmount) >= modalTotalPending) && (
+                <Input
+                  label="Discount (₹) — optional (only for full payment)"
+                  type="number"
+                  value={payDuesDiscount}
+                  onChange={(e) => setPayDuesDiscount(e.target.value)}
+                  min="0"
+                  max={modalTotalPending}
+                  step="1"
+                />
+              )}
               <Select
                 label="Payment Mode"
                 value={payDuesMode}
@@ -339,7 +366,9 @@ export default function StaffCustomers() {
                 <Button variant="secondary" onClick={() => setShowPayDues(false)}>Cancel</Button>
                 <Button onClick={handlePayDues} loading={payingDues}>
                   <DollarSign className="w-4 h-4" />
-                  Pay ₹{payDuesAmount || modalTotalPending}
+                  {discountVal > 0
+                    ? `Pay ₹${(parseFloat(payDuesAmount) || effectiveTotal).toLocaleString()} (₹${discountVal} off)`
+                    : `Pay ₹${(parseFloat(payDuesAmount) || effectiveTotal).toLocaleString()}`}
                 </Button>
               </div>
             </div>

@@ -53,7 +53,7 @@ export default function StaffDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           label="Active Sessions"
           value={stats?.activeSessions || 0}
@@ -68,20 +68,7 @@ export default function StaffDashboard() {
           color="emerald"
           subtitle="Available / Total"
         />
-        <StatCard
-          label="Today's Revenue"
-          value={`₹${stats?.todayRevenue?.toLocaleString() || '0'}`}
-          icon={DollarSign}
-          color="emerald"
-          subtitle="Collected today"
-        />
-        <StatCard
-          label="Total Customers"
-          value={stats?.totalCustomers || 0}
-          icon={Users}
-          color="violet"
-          subtitle="Registered players"
-        />
+
       </div>
 
       {/* Quick Actions */}
