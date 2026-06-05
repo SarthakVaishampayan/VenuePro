@@ -130,6 +130,20 @@ export const createDue = async (req, res, next) => {
       return error(res, { statusCode: 400, message: 'Session, customer, and amount are required', code: 'MISSING_FIELDS' });
     }
 
+    // Guard: check for existing active due for this session + customer
+    const existingDue = await Due.findOne({
+      bookingSessionId,
+      customerId,
+      status: { $in: ['pending', 'partial'] }
+    });
+    if (existingDue) {
+      return error(res, {
+        statusCode: 409,
+        message: 'An active due already exists for this session and customer. Please pay or waive the existing due first.',
+        code: 'DUPLICATE_DUE'
+      });
+    }
+
     // Verify that the customerId matches the session's actual customer
     const BookingSession = mongoose.model('BookingSession');
     const session = await BookingSession.findById(bookingSessionId).lean();

@@ -667,7 +667,7 @@ export default function StaffSessions() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {s.bookingStatus === 'completed' && (s.paymentStatus === 'pending' || s.paymentStatus === 'due') && s.finalAmount > 0 ? (
+                          {s.bookingStatus === 'completed' && s.paymentStatus === 'pending' && s.finalAmount > 0 ? (
                             <Button
                               variant="primary"
                               size="sm"

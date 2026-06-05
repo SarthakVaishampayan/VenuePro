@@ -277,10 +277,10 @@ export const payCustomerDues = async (req, res, next) => {
       if (remainingDiscount > 0 && totalRemaining > 0) {
         const proportion = dueRemaining / totalRemaining;
         if (remainingDiscount > 0 && proportion > 0) {
-          // Each due gets a fair share of the remaining discount proportional to its size.
-          // Formula: remainingDiscount * (dueRemaining / totalRemaining)
-          // Old bug: was dueRemaining * proportion which squared dueRemaining!
-          discountForThisDue = r2(Math.min(remainingDiscount * proportion, dueRemaining));
+          // Each due gets a fair share of the total discount proportional to its size.
+          // Use discountAmount (original total discount), not remainingDiscount,
+          // so that sum(proportions) = 1 and the full discount is always allocated.
+          discountForThisDue = r2(Math.min(discountAmount * proportion, dueRemaining));
           // Edge case: rounding can leave 1-2 paise undistributed; assign to last due
           if (remainingDiscount > 0 && discountForThisDue <= 0) {
             discountForThisDue = r2(Math.min(remainingDiscount, dueRemaining));

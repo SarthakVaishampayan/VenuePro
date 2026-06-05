@@ -281,6 +281,8 @@ export default function Sessions() {
   const [paySession, setPaySession] = useState(null);
   const [payAmount, setPayAmount] = useState(0);
   const [paying, setPaying] = useState(false);
+  const [payDiscount, setPayDiscount] = useState(0);
+  const [payDiscountReason, setPayDiscountReason] = useState('');
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -594,6 +596,8 @@ export default function Sessions() {
     setPayAction(null);
     setPaymentMode('cash');
     setLoserChoice('');
+    setPayDiscount(0);
+    setPayDiscountReason('');
     setShowPay(true);
   };
 
@@ -610,22 +614,26 @@ export default function Sessions() {
       } else {
         customerId = paySession.payableCustomerId || paySession.customerId?._id || paySession.customerId;
       }
-      if (payAction === 'now' && payAmount > 0) {
+
+      const discountAmount = parseFloat(payDiscount) || 0;
+      const finalPayAmount = Math.max(0, payAmount - discountAmount);
+
+      if (payAction === 'now' && finalPayAmount > 0) {
         await ownerApi.post('/payments', {
           bookingSessionId: paySession._id,
           customerId,
-          amount: payAmount,
+          amount: finalPayAmount,
           mode: paymentMode,
-          notes: `Payment for session - ${paySession.resourceNameSnapshot || ''}`
+          notes: `Payment for session - ${paySession.resourceNameSnapshot || ''}${discountAmount > 0 ? ` (discount: ₹${discountAmount})` : ''}`
         });
       }
 
-      if (payAction === 'later' && payAmount > 0) {
+      if (payAction === 'later' && finalPayAmount > 0) {
         await ownerApi.post('/dues', {
           bookingSessionId: paySession._id,
           customerId,
-          amount: payAmount,
-          notes: `Pay later for session - ${paySession.resourceNameSnapshot || ''}`
+          amount: finalPayAmount,
+          notes: `Pay later for session - ${paySession.resourceNameSnapshot || ''}${discountAmount > 0 ? ` (discount: ₹${discountAmount})` : ''}`
         });
       }
 
@@ -1156,6 +1164,50 @@ export default function Sessions() {
                     </span>
                     <span className="text-xs text-text-muted ml-auto">Player 2 (lost)</span>
                   </label>
+                </div>
+              </div>
+            )}
+
+            {/* ── Discount Fields ── */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="Discount (₹)"
+                  type="number"
+                  value={payDiscount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const max = payAmount;
+                    if (val === '' || parseFloat(val) <= max) {
+                      setPayDiscount(val);
+                    }
+                  }}
+                  min="0"
+                  max={payAmount}
+                />
+                {payAmount > 0 && (
+                  <p className="text-xs text-text-muted mt-1">Max discount: ₹{payAmount}</p>
+                )}
+              </div>
+              <Input label="Discount Reason" value={payDiscountReason} onChange={(e) => setPayDiscountReason(e.target.value)} placeholder="Optional" />
+            </div>
+
+            {/* ── Adjusted Amount ── */}
+            {(parseFloat(payDiscount) > 0) && (
+              <div className="p-3 bg-surface rounded-lg border border-border">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Original Amount</span>
+                  <span className="font-medium text-text-primary">₹{payAmount}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-text-muted">Discount</span>
+                  <span className="font-medium text-red-500">-₹{parseFloat(payDiscount) || 0}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1 pt-2 border-t border-border">
+                  <span className="font-semibold text-text-primary">Final Payable</span>
+                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    ₹{Math.max(0, payAmount - (parseFloat(payDiscount) || 0))}
+                  </span>
                 </div>
               </div>
             )}

@@ -102,6 +102,20 @@ export const createDue = async (req, res, next) => {
       return error(res, { statusCode: 400, message: 'Session, customer, and amount are required', code: 'MISSING_FIELDS' });
     }
 
+    // Guard: check for existing active due for this session + customer
+    const existingDue = await PickleballDue.findOne({
+      bookingSessionId,
+      customerId,
+      status: { $in: ['pending', 'partial'] }
+    });
+    if (existingDue) {
+      return error(res, {
+        statusCode: 409,
+        message: 'An active due already exists for this session and customer. Please pay or waive the existing due first.',
+        code: 'DUPLICATE_DUE'
+      });
+    }
+
     // Guard: verify customerId matches the session's actual customer
     const session = await mongoose.model('PickleballBookingSession').findById(bookingSessionId).lean();
     if (!session) {
@@ -314,7 +328,7 @@ export const payCustomerDues = async (req, res, next) => {
       if (remainingDiscount > 0 && totalRemaining > 0) {
         const proportion = dueRemaining / totalRemaining;
         if (remainingDiscount > 0 && proportion > 0) {
-          discountForThisDue = Math.min(remainingDiscount * proportion, dueRemaining);
+          discountForThisDue = Math.min(discountAmount * proportion, dueRemaining);
           if (remainingDiscount > 0 && discountForThisDue <= 0) {
             discountForThisDue = Math.min(remainingDiscount, dueRemaining);
           }
