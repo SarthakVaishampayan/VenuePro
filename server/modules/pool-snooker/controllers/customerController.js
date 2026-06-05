@@ -1,27 +1,10 @@
 import mongoose from 'mongoose';
 import Player from '../../../core/models/Player.js';
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
-import { success, error, created } from '../../../core/utils/responseHelper.js';
-import { generateCustomerCode } from '../services/pricingService.js';
-import { hashPassword, generateTemporaryPassword } from '../../../core/utils/passwordHelper.js';
+import { success, error } from '../../../core/utils/responseHelper.js';
 
 // Round to 2 decimal places — prevents floating point artifacts like 0.9900000000000002
 const r2 = (val) => Math.round((val || 0) * 100) / 100;
-
-const checkAndIncrementCode = async (tenantId, baseCode) => {
-  let counter = 1;
-  let finalCode = baseCode;
-
-  while (true) {
-    const existing = await Player.findOne({ customerCode: finalCode });
-    if (!existing) break;
-    counter++;
-    const parts = baseCode.split('-');
-    finalCode = `${parts[0]}-${parts[1]}${counter}`;
-  }
-
-  return finalCode;
-};
 
 /**
  * @swagger
@@ -39,12 +22,51 @@ export const getAllCustomers = async (req, res, next) => {
       .lean();
 
     const DueModel = getBusinessModel(req, 'Due');
+    const BookingSessionModel = getBusinessModel(req, 'BookingSession');
 
-    // Attach pending due amounts scoped to the requesting tenant
     // Note: aggregation pipelines don't auto-cast ObjectIds like find() does,
     // so we must cast to ObjectId explicitly for the $match to work.
     const tenantObjectId = new mongoose.Types.ObjectId(req.tenantId);
 
+    // Calculate tenant-scoped wins/losses from BookingSession data
+    // instead of using the global wins/losses on the Player document
+    const [lossCounts, winCounts] = await Promise.all([
+      BookingSessionModel.aggregate([
+        { $match: {
+          tenantId: tenantObjectId,
+          bookingStatus: 'completed',
+          loserCustomerId: { $exists: true, $ne: null }
+        }},
+        { $group: { _id: '$loserCustomerId', count: { $sum: 1 } } }
+      ]),
+      BookingSessionModel.aggregate([
+        { $match: {
+          tenantId: tenantObjectId,
+          bookingStatus: 'completed',
+          loserCustomerId: { $exists: true, $ne: null }
+        }},
+        { $project: {
+          winnerId: {
+            $cond: [
+              { $eq: ['$customerId', '$loserCustomerId'] },
+              '$secondaryCustomerId',
+              '$customerId'
+            ]
+          }
+        }},
+        // Filter out null winners (e.g. single-player session with loser set incorrectly)
+        { $match: { winnerId: { $ne: null, $exists: true } } },
+        { $group: { _id: '$winnerId', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    // Build lookup maps for O(1) access
+    const winMap = {};
+    winCounts.forEach(w => { winMap[w._id.toString()] = w.count; });
+    const lossMap = {};
+    lossCounts.forEach(l => { lossMap[l._id.toString()] = l.count; });
+
+    // Attach pending due amounts scoped to the requesting tenant
     const playersWithDues = await Promise.all(players.map(async (player) => {
       const pendingDues = await DueModel.aggregate([
         { $match: { tenantId: tenantObjectId, customerId: player._id, status: { $in: ['pending', 'partial'] } } },
@@ -55,7 +77,11 @@ export const getAllCustomers = async (req, res, next) => {
         source: player.tenantId ? 'venue' : 'portal',
         // Only show dues scoped to the requesting tenant, not the global player.totalDue
         // which accumulates across ALL venues this player has visited
-        totalDue: Math.round((pendingDues[0]?.total ?? 0) * 100) / 100
+        totalDue: Math.round((pendingDues[0]?.total ?? 0) * 100) / 100,
+        // Override global wins/losses with tenant-scoped values calculated
+        // from completed 2-player sessions at this venue
+        wins: winMap[player._id.toString()] || 0,
+        losses: lossMap[player._id.toString()] || 0
       };
     }));
 
@@ -130,69 +156,6 @@ export const getCustomerById = async (req, res, next) => {
     }
     return success(res, { data: player });
   } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @swagger
- * /api/tenant/customers:
- *   post:
- *     tags: [Customers]
- *     summary: Create customer
- */
-export const createCustomer = async (req, res, next) => {
-  try {
-    const { fullName, nickname, phone, email, dob, tags } = req.body;
-
-    if (!fullName) {
-      return error(res, { statusCode: 400, message: 'Full name is required', code: 'MISSING_FIELDS' });
-    }
-
-    // Email is required so we can send the player their login credentials
-    if (!email) {
-      return error(res, { statusCode: 400, message: 'Email is required — player needs it to login to their portal', code: 'MISSING_FIELDS' });
-    }
-
-    let customerCode = generateCustomerCode(fullName);
-    customerCode = await checkAndIncrementCode(req.tenantId, customerCode);
-
-    // Generate a secure temporary password
-    const tempPassword = generateTemporaryPassword();
-    const passwordHash = await hashPassword(tempPassword);
-
-    const player = await Player.create({
-      tenantId: req.tenantId,
-      customerCode,
-      fullName,
-      nickname,
-      phone: phone || undefined,
-      email,
-      dob: dob ? new Date(dob) : null,
-      tags: tags || [],
-      passwordHash,
-      // Force password change on first login
-      passwordChangeRequired: true
-    });
-
-    // Return the temp password so the owner can share it with the player
-    return created(res, {
-      data: {
-        player: {
-          _id: player._id,
-          fullName: player.fullName,
-          email: player.email,
-          phone: player.phone,
-          customerCode: player.customerCode
-        },
-        tempPassword,
-        message: `Player created. Share this temporary password with ${player.fullName}: ${tempPassword}`
-      }
-    });
-  } catch (err) {
-    if (err.code === 11000) {
-      return error(res, { statusCode: 400, message: 'Customer with this ID already exists', code: 'DUPLICATE' });
-    }
     next(err);
   }
 };

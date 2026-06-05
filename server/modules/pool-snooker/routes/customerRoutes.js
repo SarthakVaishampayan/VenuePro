@@ -3,7 +3,6 @@ import {
   getAllCustomers,
   searchCustomers,
   getCustomerById,
-  createCustomer,
   updateCustomer,
   getCustomerBookings,
   payCustomerDues,
@@ -18,12 +17,12 @@ const router = express.Router();
 router.use(tenantAuth);
 router.use(resolveBusinessType);
 
-// Owners can only view players — staff can also create/edit/pay
+// Owners can only view players — staff can edit/manage
 const ownerReadOnly = (req, res, next) => {
   if (req.user?.role === 'owner_admin') {
     return errorResponse(res, {
       statusCode: 403,
-      message: 'Owners can only view players. Ask your staff to create, edit, or manage players.',
+      message: 'Owners can only view players. Ask your staff to edit or manage players.',
       code: 'OWNER_READONLY'
     });
   }
@@ -36,7 +35,6 @@ router.get('/:id/bookings', getCustomerBookings);
 router.get('/:id/dues', getCustomerDues);
 router.post('/:id/pay-dues', payCustomerDues);
 router.get('/:id', getCustomerById);
-router.post('/', ownerReadOnly, createCustomer);
 router.put('/:id', ownerReadOnly, updateCustomer);
 // DELETE intentionally removed for all roles
 

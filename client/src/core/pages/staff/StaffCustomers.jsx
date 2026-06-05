@@ -6,7 +6,7 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { PageLoader } from '../../components/common/Loader';
-import { Plus, Search, Phone, Mail, ChevronDown, ChevronUp, DollarSign, AlertCircle } from 'lucide-react';
+import { Search, Phone, Mail, ChevronDown, ChevronUp, DollarSign, AlertCircle } from 'lucide-react';
 
 export default function StaffCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -28,12 +28,6 @@ export default function StaffCustomers() {
   const [payDuesMode, setPayDuesMode] = useState('cash');
   const [payingDues, setPayingDues] = useState(false);
   const [payDuesError, setPayDuesError] = useState('');
-
-  // Create modal
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', nickname: '', phone: '', email: '' });
-  const [saving, setSaving] = useState(false);
 
   const toggleExpand = async (customerId) => {
     if (expandedId === customerId) {
@@ -103,30 +97,6 @@ export default function StaffCustomers() {
     ));
   }, [search, customers]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ fullName: '', nickname: '', phone: '', email: '' });
-    setError('');
-    setShowModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.fullName) { setError('Full name is required'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      if (editing) {
-        await staffApi.put(`/customers/${editing._id}`, form);
-      } else {
-        await staffApi.post('/customers', form);
-      }
-      setShowModal(false);
-      fetchCustomers();
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to save customer');
-    } finally { setSaving(false); }
-  };
-
   if (loading) return <PageLoader />;
 
   if (error && customers.length === 0) {
@@ -159,7 +129,6 @@ export default function StaffCustomers() {
           <h1 className="text-2xl font-bold text-text-primary">Players</h1>
           <p className="text-text-muted mt-1">View and manage players</p>
         </div>
-        <Button onClick={openCreate} icon={Plus}>Add Player</Button>
       </div>
 
       {/* Search */}
@@ -376,26 +345,6 @@ export default function StaffCustomers() {
         })()}
       </Modal>
 
-      {/* Create Modal */}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Player' : 'Add Player'} size="md">
-        <div className="space-y-4">
-          <Input label="Full Name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required />
-          <Input label="Nickname / Alias" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="Optional" />
-          <Input label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Optional" />
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Optional" />
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving} disabled={!form.fullName}>
-              {editing ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -68,7 +68,7 @@ export const BUSINESS_TYPES = {
     customerLabelSingular: 'Player',
     customerLabelPlural: 'Players',
     pricingStrategy: 'time_based',
-    bookingMode: 'configurable',
+    bookingMode: 'session',
     enabledModules: ['resources', 'sessions', 'payments', 'dues', 'expenses', 'staff', 'reports', 'customers'],
     defaultSettings: {}
   }

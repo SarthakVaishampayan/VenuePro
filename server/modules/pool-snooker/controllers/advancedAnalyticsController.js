@@ -442,8 +442,7 @@ export const getCustomRangeAnalytics = async (req, res, next) => {
           totalSessions: sessions.length,
           paymentCount: payments.length,
           expenseCount: expenses.length,
-          pendingDues: totalDues,
-          totalCustomers: customers
+          pendingDues: totalDues
         },
         comparison,
         modeBreakdown,

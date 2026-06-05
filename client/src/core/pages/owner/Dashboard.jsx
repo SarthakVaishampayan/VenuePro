@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Table2, DollarSign, Wallet, TrendingUp, Users, Receipt, Sparkles, RotateCcw } from 'lucide-react';
+import { Clock, Table2, DollarSign, Wallet, TrendingUp, Receipt, Sparkles, RotateCcw } from 'lucide-react';
 import { useOwnerAuth } from '../../context/OwnerAuthContext';
 import ownerApi from '../../services/ownerApi';
 import { Card, CardHeader, StatCard } from '../../components/common/Card';
@@ -183,7 +183,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Secondary KPI row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
@@ -192,17 +192,6 @@ export default function OwnerDashboard() {
             <div>
               <p className="text-sm font-medium text-text-muted">Completed Sessions</p>
               <p className="text-xl font-bold text-text-primary">{stats?.completedSessions || 0}</p>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-muted">Total Customers</p>
-              <p className="text-xl font-bold text-text-primary">{stats?.totalCustomers || 0}</p>
             </div>
           </div>
         </Card>

@@ -38,26 +38,28 @@ const getDateRange = (filter, req) => {
 };
 
 /**
- * Helper: Get sessions ending in a date range + all payments for those sessions.
- * Revenue is attributed by session endTime, not payment createdAt.
- * This ensures Resource Usage = Total Revenue always.
+ * Helper: Get payments created in a date range + the sessions they belong to.
+ * Revenue is attributed by payment createdAt, not session endTime.
+ * This aligns Reports with the Payments page so all pages show the same totals.
  */
-const getSessionsAndPayments = async (req, start, end) => {
-  const BookingSessionModel = getBusinessModel(req, 'BookingSession');
+const getPaymentsInRange = async (req, start, end) => {
   const PaymentModel = getBusinessModel(req, 'Payment');
+  const BookingSessionModel = getBusinessModel(req, 'BookingSession');
 
-  // Get completed sessions that ended in the date range
-  const sessions = await BookingSessionModel.find({
+  // Get all payments created in the date range
+  const payments = await PaymentModel.find({
     tenantId: req.tenantId,
-    bookingStatus: 'completed',
-    endTime: { $gte: start, $lte: end }
+    createdAt: { $gte: start, $lte: end }
   }).lean();
 
-  // Get all payments for those sessions
-  const sessionIds = sessions.map(s => s._id).filter(Boolean);
-  const payments = sessionIds.length > 0
-    ? await PaymentModel.find({ bookingSessionId: { $in: sessionIds } }).lean()
-    : [];
+  // Get distinct sessions linked to those payments
+  const sessionIds = [...new Set(
+    payments.map(p => p.bookingSessionId?.toString()).filter(Boolean)
+  )];
+  let sessions = [];
+  if (sessionIds.length > 0) {
+    sessions = await BookingSessionModel.find({ _id: { $in: sessionIds } }).lean();
+  }
 
   return { sessions, payments };
 };
@@ -77,7 +79,7 @@ export const getRevenueReport = async (req, res, next) => {
     const DueModel = getBusinessModel(req, 'Due');
 
     const [{ sessions, payments }, pendingDues] = await Promise.all([
-      getSessionsAndPayments(req, start, end),
+      getPaymentsInRange(req, start, end),
       DueModel.find({ tenantId: req.tenantId, status: { $in: ['pending', 'partial'] } })
     ]);
 
@@ -135,7 +137,7 @@ export const getRevenueTrend = async (req, res, next) => {
       const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 
-      const { payments } = await getSessionsAndPayments(req, dayStart, dayEnd);
+      const { payments } = await getPaymentsInRange(req, dayStart, dayEnd);
 
       data.push({
         date: dayStart.toISOString().split('T')[0],
@@ -166,7 +168,7 @@ export const getPaymentSplit = async (req, res, next) => {
     let payments = [];
     if (filter && filter !== 'all') {
       const { start, end } = getDateRange(filter, req);
-      const result = await getSessionsAndPayments(req, start, end);
+      const result = await getPaymentsInRange(req, start, end);
       payments = result.payments;
     } else {
       // All time: get all payments (no date filter)
@@ -205,27 +207,25 @@ export const getResourceUsage = async (req, res, next) => {
     const PaymentModel = getBusinessModel(req, 'Payment');
     const ResourceModel = getBusinessModel(req, 'Resource');
 
-    // Build date filter
+    // Build date filter based on payment createdAt
     let dateFilter = {};
     if (filter && filter !== 'all') {
       const { start, end } = getDateRange(filter, req);
-      dateFilter = { endTime: { $gte: start, $lte: end } };
+      dateFilter = { createdAt: { $gte: start, $lte: end } };
     }
 
-    // Step 1: Get all completed sessions in the date range
-    const sessions = await BookingSessionModel.find({
+    // Step 1: Get all payments in the date range (matches Payments page logic)
+    const payments = await PaymentModel.find({
       tenantId: req.tenantId,
-      bookingStatus: 'completed',
       ...dateFilter
     }).lean();
 
-    // Step 2: Get all payments for those sessions (use Payment model so revenue
-    // matches Total Revenue exactly — avoids discrepancy where session finalAmount
-    // differs from actual payments collected)
-    const sessionIds = sessions.map(s => s._id).filter(Boolean);
-    const payments = sessionIds.length > 0
-      ? await PaymentModel.find({ bookingSessionId: { $in: sessionIds } }).lean()
-      : [];
+    // Step 2: Get sessions linked to those payments
+    const sessionIds = [...new Set(payments.map(p => p.bookingSessionId?.toString()).filter(Boolean))];
+    let sessions = [];
+    if (sessionIds.length > 0) {
+      sessions = await BookingSessionModel.find({ _id: { $in: sessionIds } }).lean();
+    }
 
     // Build a map: sessionId -> total collected
     const paymentBySession = {};
@@ -363,7 +363,7 @@ export const getProfitLoss = async (req, res, next) => {
     const { start, end } = getDateRange(filter, req);
 
     const [{ payments }, expenses] = await Promise.all([
-      getSessionsAndPayments(req, start, end),
+      getPaymentsInRange(req, start, end),
       Expense.find({ tenantId: req.tenantId, date: { $gte: start, $lte: end } })
     ]);
 

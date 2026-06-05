@@ -133,9 +133,10 @@ export default function PlayerDues() {
                           {d.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-text-muted">
+                      <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">
                         {new Date(d.createdAt).toLocaleDateString('en-US', {
-                          month: 'short', day: 'numeric'
+                          month: 'short', day: 'numeric', year: 'numeric',
+                          hour: 'numeric', minute: '2-digit'
                         })}
                       </td>
                     </tr>

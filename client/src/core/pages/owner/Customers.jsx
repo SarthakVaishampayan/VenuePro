@@ -101,7 +101,11 @@ export default function Customers() {
   };
 
   const getTotalPending = useCallback((dues) => {
-    return dues.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+    // Only sum remaining amounts for dues that are actually pending or partial
+    // Paid dues should never show the Clear All Dues button
+    return dues
+      .filter(d => d.status === 'pending' || d.status === 'partial')
+      .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
   }, []);
 
   if (loading) return <PageLoader />;

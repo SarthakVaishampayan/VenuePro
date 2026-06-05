@@ -22,9 +22,9 @@ export default function PlayerPayments() {
       const paymentsData = data.data;
       setPayments(paymentsData?.data || paymentsData || []);
       setSummary({
-        totalPaid: (paymentsData?.data || []).reduce((sum, p) => sum + (p.amount || 0), 0),
-        totalTransactions: (paymentsData?.data || []).length,
-        monthlyPaid: (paymentsData?.data || [])
+        totalPaid: (paymentsData || []).reduce((sum, p) => sum + (p.amount || 0), 0),
+        totalTransactions: (paymentsData || []).length,
+        monthlyPaid: (paymentsData || [])
           .filter(p => {
             const d = new Date(p.createdAt);
             const now = new Date();

@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
 import Expense from '../models/Expense.js';
-import Player from '../../../core/models/Player.js';
-import { success, error } from '../../../core/utils/responseHelper.js';
+import { success } from '../../../core/utils/responseHelper.js';
 import { startOfDay, endOfDay } from '../../../core/utils/dateHelper.js';
 
 /**
@@ -48,10 +47,15 @@ export const getDashboard = async (req, res, next) => {
         { $match: { tenantId, status: { $in: ['pending', 'partial'] } } },
         { $group: { _id: null, total: { $sum: { $subtract: ['$amount', '$paidAmount'] } } } }
       ]),
-      BookingSessionModel.countDocuments({ tenantId, bookingStatus: 'completed' })
+      BookingSessionModel.countDocuments({
+        tenantId,
+        bookingStatus: 'completed',
+        endTime: { $gte: todayStart, $lte: todayEnd }
+      })
     ]);
 
     const todayRevenue = todayPayments[0]?.total || 0;
+
     const todayExpenseTotal = todayExpenses[0]?.total || 0;
     const totalPendingDues = pendingDues[0]?.total || 0;
 
@@ -74,8 +78,7 @@ export const getDashboard = async (req, res, next) => {
           todayExpenses: todayExpenseTotal,
           todayProfit: todayRevenue - todayExpenseTotal,
           totalPendingDues,
-          completedSessions,
-          totalCustomers: await Player.countDocuments({ tenantId })
+          completedSessions
         },
         recentSessions: recentSessions.map(s => ({
           _id: s._id,
