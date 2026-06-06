@@ -1,7 +1,6 @@
 import StaffShift from '../models/StaffShift.js';
 import StaffUser from '../models/StaffUser.js';
 import { success, error, created } from '../../../core/utils/responseHelper.js';
-import { logActivity } from './activityLogController.js';
 
 /**
  * @swagger
@@ -123,18 +122,6 @@ export const createShift = async (req, res, next) => {
       notes
     });
 
-    await logActivity({
-      tenantId: req.tenantId,
-      branchId: branchToUse,
-      userId: req.user.id,
-      userName: req.user.name || 'owner',
-      userRole: req.user.role || 'owner_admin',
-      action: 'create',
-      entity: 'staff',
-      entityId: shift._id,
-      details: `Shift assigned to ${staff.name} (${startTime} - ${endTime})`
-    });
-
     return created(res, { data: shift });
   } catch (err) {
     next(err);
@@ -161,18 +148,6 @@ export const checkIn = async (req, res, next) => {
     shift.status = 'checked_in';
     shift.checkedInAt = new Date();
     await shift.save();
-
-    await logActivity({
-      tenantId: req.tenantId,
-      branchId: shift.branchId,
-      userId: req.user.id,
-      userName: req.user.name || 'staff',
-      userRole: req.user.role || 'staff',
-      action: 'check_in',
-      entity: 'staff',
-      entityId: shift._id,
-      details: `Staff checked in for shift on ${shift.date.toLocaleDateString()}`
-    });
 
     return success(res, { data: shift });
   } catch (err) {

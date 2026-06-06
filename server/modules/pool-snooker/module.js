@@ -14,7 +14,6 @@ import * as paymentController from './controllers/paymentController.js';
 import reportRoutes from './routes/reportRoutes.js';
 import settingRoutes from './routes/settingRoutes.js';
 import branchRoutes from './routes/branchRoutes.js';
-import activityLogRoutes from './routes/activityLogRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 
 import * as resourceController from './controllers/resourceController.js';
@@ -33,7 +32,6 @@ export const registerPoolSnookerModule = (app) => {
   app.use('/api/tenant/reports', reportRoutes);
   app.use('/api/tenant/settings', settingRoutes);
   app.use('/api/tenant/branches', branchRoutes);
-  app.use('/api/tenant/activity-logs', activityLogRoutes);
   app.use('/api/tenant/analytics', analyticsRoutes);
 
   // Register resource/booking controllers in the tenant-aware dispatcher

@@ -54,7 +54,6 @@ import OwnerSettings from './core/pages/owner/Settings';
 import OwnerChangePassword from './core/pages/owner/ChangePassword';
 import NotificationCenter from './core/pages/owner/NotificationCenter';
 import Branches from './core/pages/owner/Branches';
-import ActivityLogs from './core/pages/owner/ActivityLogs';
 
 // Staff pages
 import StaffLogin from './core/pages/staff/StaffLogin';
@@ -297,7 +296,6 @@ export default function App() {
                 <Route path="reports" element={<OwnerReports />} />
                 <Route path="settings" element={<OwnerSettings />} />
                 <Route path="branches" element={<Branches />} />
-                <Route path="activity-logs" element={<ActivityLogs />} />
                 <Route path="notifications" element={<NotificationCenter role="owner" backPath="/owner/dashboard" />} />
                 <Route path="change-password" element={<OwnerChangePassword />} />
               </Route>

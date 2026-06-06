@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Table2, Users, ShoppingCart, Wallet,
   DollarSign, Receipt, BadgePercent, FileText, Settings,
   Menu, X, LogOut, User, Moon, Sun, ChevronDown, Bell,
-  Clock, Building2, Activity, KeyRound
+  Clock, Building2, KeyRound
 } from 'lucide-react';
 import { useOwnerAuth } from '../../context/OwnerAuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -33,7 +33,6 @@ export default function OwnerLayout() {
     { path: '/owner/branches', label: 'Branches', icon: Building2 },
     { path: '/owner/staff', label: 'Staff', icon: BadgePercent },
     { path: '/owner/reports', label: 'Reports', icon: FileText },
-    { path: '/owner/activity-logs', label: 'Activity Log', icon: Activity },
     { path: '/owner/settings', label: 'Settings', icon: Settings }
   ];
 
