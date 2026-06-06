@@ -35,8 +35,8 @@ const createTenantSchema = z.object({
   }).optional(),
   timezone: z.string().optional(),
   currency: z.string().optional(),
-  planKey: z.enum(['free', 'starter', 'professional', 'enterprise']).optional(),
-  billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).default('monthly'),
+  planKey: z.string().optional(),
+  billingCycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']).default('monthly'),
   trialDays: z.number().int().min(0).max(90).optional()
 });
 

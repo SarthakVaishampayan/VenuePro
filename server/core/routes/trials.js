@@ -24,8 +24,8 @@ const extendTrialSchema = z.object({
 });
 
 const convertToPaidSchema = z.object({
-  planKey: z.enum(['starter', 'professional', 'enterprise']).optional(),
-  billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).optional(),
+  planKey: z.string().optional(),
+  billingCycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']).optional(),
   discountPercent: z.number().min(0).max(100).optional(),
   discountReason: z.string().max(500).optional()
 });
@@ -448,9 +448,9 @@ router.post('/:id/convert', superAdminAuth, validateObjectId('id'), validateBody
       'subscription.currentPeriodStart': now,
       'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
       'subscription.billingCycle': billingCycle,
-      maxBranches: plan.limits.branches || 1,
-      maxResources: plan.limits.resources || 2,
-      maxStaff: plan.limits.staff || 2
+      maxBranches: plan.limits.branches ?? 1,
+      maxResources: plan.limits.resources ?? 2,
+      maxStaff: plan.limits.staff ?? 2
     });
 
     // Audit log

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { Clock, AlertTriangle, X, ChevronRight, Sparkles, Calendar } from 'lucide-react';
+import axios from 'axios';
 import Button from './Button';
 import Modal from './Modal';
 
@@ -16,6 +17,18 @@ import Modal from './Modal';
 export default function TrialBanner({ trial, onUpgrade, onExtend, onDismiss }) {
   const [dismissed, setDismissed] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePlans, setUpgradePlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+
+  useEffect(() => {
+    if (showUpgradeModal && upgradePlans.length === 0 && !plansLoading) {
+      setPlansLoading(true);
+      axios.get('/api/public/subscription-plans')
+        .then(res => setUpgradePlans(res.data?.data || []))
+        .catch(() => setUpgradePlans([]))
+        .finally(() => setPlansLoading(false));
+    }
+  }, [showUpgradeModal]);
 
   if (!trial || dismissed) return null;
 
@@ -122,52 +135,45 @@ export default function TrialBanner({ trial, onUpgrade, onExtend, onDismiss }) {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Starter */}
-            <div className="border border-border rounded-xl p-4 hover:border-primary-500 cursor-pointer transition-colors">
-              <h3 className="font-semibold text-text-primary">Starter</h3>
-              <p className="text-2xl font-bold text-text-primary mt-2">₹499<span className="text-sm font-normal text-text-muted">/mo</span></p>
-              <ul className="mt-3 space-y-1.5">
-                <li className="text-xs text-text-muted">Up to 3 resources</li>
-                <li className="text-xs text-text-muted">Up to 2 staff accounts</li>
-                <li className="text-xs text-text-muted">Basic reports</li>
-              </ul>
-              <Button size="sm" variant="primary" className="mt-4 w-full" onClick={() => { onUpgrade?.('starter'); setShowUpgradeModal(false); }}>
-                Choose Starter
-              </Button>
-            </div>
-
-            {/* Professional */}
-            <div className="border-2 border-primary-500 rounded-xl p-4 relative">
-              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary-500 text-white text-xs font-medium rounded-full">
-                Popular
-              </span>
-              <h3 className="font-semibold text-text-primary">Professional</h3>
-              <p className="text-2xl font-bold text-text-primary mt-2">₹1,499<span className="text-sm font-normal text-text-muted">/mo</span></p>
-              <ul className="mt-3 space-y-1.5">
-                <li className="text-xs text-text-muted">Up to 10 resources</li>
-                <li className="text-xs text-text-muted">Up to 5 staff accounts</li>
-                <li className="text-xs text-text-muted">Advanced reports & analytics</li>
-                <li className="text-xs text-text-muted">Priority support</li>
-              </ul>
-              <Button size="sm" variant="success" className="mt-4 w-full" onClick={() => { onUpgrade?.('professional'); setShowUpgradeModal(false); }}>
-                Choose Professional
-              </Button>
-            </div>
-
-            {/* Enterprise */}
-            <div className="border border-border rounded-xl p-4 hover:border-primary-500 cursor-pointer transition-colors">
-              <h3 className="font-semibold text-text-primary">Enterprise</h3>
-              <p className="text-2xl font-bold text-text-primary mt-2">₹2,999<span className="text-sm font-normal text-text-muted">/mo</span></p>
-              <ul className="mt-3 space-y-1.5">
-                <li className="text-xs text-text-muted">Unlimited resources</li>
-                <li className="text-xs text-text-muted">Unlimited staff accounts</li>
-                <li className="text-xs text-text-muted">All features + custom branding</li>
-                <li className="text-xs text-text-muted">Dedicated account manager</li>
-              </ul>
-              <Button size="sm" variant="primary" className="mt-4 w-full" onClick={() => { onUpgrade?.('enterprise'); setShowUpgradeModal(false); }}>
-                Choose Enterprise
-              </Button>
-            </div>
+            {plansLoading ? (
+              <div className="col-span-full py-8 text-center text-sm text-text-muted">Loading plans...</div>
+            ) : upgradePlans.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-sm text-text-muted">
+                No plans available. Contact your super admin for assistance.
+              </div>
+            ) : (
+              upgradePlans.filter(p => p.isActive !== false).map((plan, idx) => {
+                const isPopular = plan.badge === 'Popular' || (idx === Math.floor(upgradePlans.length / 2) && !plan.badge);
+                return (
+                  <div key={plan._id} className={`${isPopular ? 'border-2 border-primary-500 relative' : 'border border-border hover:border-primary-500 cursor-pointer'} rounded-xl p-4 transition-colors`}>
+                    {isPopular && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary-500 text-white text-xs font-medium rounded-full">
+                        {plan.badge || 'Popular'}
+                      </span>
+                    )}
+                    <h3 className="font-semibold text-text-primary">{plan.name}</h3>
+                    <p className="text-2xl font-bold text-text-primary mt-2">₹{plan.prices?.monthly || 0}<span className="text-sm font-normal text-text-muted">/mo</span></p>
+                    {plan.description && (
+                      <p className="text-xs text-text-muted mt-1">{plan.description}</p>
+                    )}
+                    <ul className="mt-3 space-y-1.5">
+                      {plan.limits?.resources !== undefined && (
+                        <li className="text-xs text-text-muted">Up to {plan.limits.resources} resources</li>
+                      )}
+                      {plan.limits?.staff !== undefined && (
+                        <li className="text-xs text-text-muted">Up to {plan.limits.staff} staff accounts</li>
+                      )}
+                      {(plan.features || []).slice(0, 3).map((f, i) => (
+                        <li key={i} className="text-xs text-text-muted">{typeof f === 'string' ? f : f.name}</li>
+                      ))}
+                    </ul>
+                    <Button size="sm" variant={isPopular ? 'success' : 'primary'} className="mt-4 w-full" onClick={() => { onUpgrade?.(plan.key || plan._id); setShowUpgradeModal(false); }}>
+                      Choose {plan.name}
+                    </Button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </Modal>

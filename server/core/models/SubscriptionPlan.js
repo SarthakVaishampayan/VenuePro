@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const priceSchema = new mongoose.Schema({
   monthly: { type: Number, default: 0, min: 0 },
   quarterly: { type: Number, default: 0, min: 0 },
+  semiAnnual: { type: Number, default: 0, min: 0 },
   yearly: { type: Number, default: 0, min: 0 }
 }, { _id: false });
 
@@ -33,8 +34,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
     required: true,
     unique: true,
     lowercase: true,
-    trim: true,
-    enum: ['free', 'starter', 'professional', 'enterprise']
+    trim: true
   },
   description: {
     type: String,
@@ -77,6 +77,18 @@ const subscriptionPlanSchema = new mongoose.Schema({
       return ret;
     }
   }
+});
+
+// Auto-generate key from name on create
+subscriptionPlanSchema.pre('validate', function (next) {
+  if (this.isNew && !this.key) {
+    this.key = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 60);
+  }
+  next();
 });
 
 // Indexes (key already indexed via `unique: true`)

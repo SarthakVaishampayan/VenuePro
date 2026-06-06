@@ -17,6 +17,7 @@ const tenantSubscriptionSchema = new mongoose.Schema({
     prices: {
       monthly: Number,
       quarterly: Number,
+      semiAnnual: Number,
       yearly: Number
     },
     limits: {
@@ -27,7 +28,7 @@ const tenantSubscriptionSchema = new mongoose.Schema({
   },
   billingCycle: {
     type: String,
-    enum: ['monthly', 'quarterly', 'yearly'],
+    enum: ['monthly', 'quarterly', 'semi_annual', 'yearly'],
     default: 'monthly',
     required: true
   },

@@ -14,11 +14,12 @@ const router = express.Router();
 
 const createPlanSchema = z.object({
   name: z.string().min(2).max(100),
-  key: z.enum(['free', 'starter', 'professional', 'enterprise']),
+  key: z.string().optional(),
   description: z.string().max(500).optional(),
   prices: z.object({
     monthly: z.number().min(0).default(0),
     quarterly: z.number().min(0).default(0),
+    semiAnnual: z.number().min(0).default(0),
     yearly: z.number().min(0).default(0)
   }),
   features: z.array(z.object({

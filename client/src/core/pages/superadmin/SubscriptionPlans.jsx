@@ -4,7 +4,6 @@ import api from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import { Card, CardHeader } from '../../components/common/Card';
 import { PageLoader } from '../../components/common/Loader';
 import Badge from '../../components/common/Badge';
@@ -12,10 +11,9 @@ import Modal from '../../components/common/Modal';
 
 const initialForm = {
   name: '',
-  key: '',
   description: '',
   badge: '',
-  prices: { monthly: 0, quarterly: 0, yearly: 0 },
+  prices: { monthly: 0, quarterly: 0, semiAnnual: 0, yearly: 0 },
   limits: { branches: 1, resources: 10, staff: 5, storage: 100, apiRequests: 1000 },
   features: [],
   sortOrder: 0,
@@ -59,7 +57,6 @@ export default function SubscriptionPlans() {
     setEditing(plan);
     setForm({
       name: plan.name,
-      key: plan.key,
       description: plan.description || '',
       badge: plan.badge || '',
       prices: plan.prices || initialForm.prices,
@@ -92,18 +89,31 @@ export default function SubscriptionPlans() {
     setForm(prev => ({ ...prev, features: prev.features.map((f, i) => i === idx ? { ...f, included: !f.included } : f) }));
   };
 
+  // Auto-generate key from plan name
+  const generateKey = (name) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 60);
+  };
+
   const handleSave = async () => {
     setError('');
-    if (!form.name || !form.key) {
-      setError('Name and key are required');
+    if (!form.name) {
+      setError('Plan name is required');
       return;
     }
     setSaving(true);
     try {
+      const payload = { ...form };
+      if (!editing) {
+        payload.key = generateKey(form.name);
+      }
       if (editing) {
-        await api.patch(`/subscription-plans/${editing._id}`, form);
+        await api.patch(`/subscription-plans/${editing._id}`, payload);
       } else {
-        await api.post('/subscription-plans', form);
+        await api.post('/subscription-plans', payload);
       }
       setModalOpen(false);
       fetchPlans();
@@ -288,25 +298,22 @@ export default function SubscriptionPlans() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Plan' : 'Add Plan'} size="xl">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Plan Name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Starter" required />
-            <Select label="Key" value={form.key} onChange={(e) => setForm(f => ({ ...f, key: e.target.value }))} disabled={!!editing} options={[
-              { value: 'free', label: 'free' },
-              { value: 'starter', label: 'starter' },
-              { value: 'professional', label: 'professional' },
-              { value: 'enterprise', label: 'enterprise' }
-            ]} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+            <Input label="Plan Name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Turf Starter" required />
             <Input label="Tagline / Badge" value={form.badge} onChange={(e) => setForm(f => ({ ...f, badge: e.target.value }))} placeholder="Most Popular" />
+          </div>
+          <p className="text-xs text-text-muted -mt-2">
+            Key will be auto-generated from plan name: <span className="font-mono">{form.name ? generateKey(form.name) : '—'}</span>
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Description" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe this plan" />
             <Input label="Sort Order" type="number" value={form.sortOrder} onChange={(e) => setForm(f => ({ ...f, sortOrder: parseInt(e.target.value) || 0 }))} />
           </div>
-          <Input label="Description" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe this plan" />
-
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">Pricing</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Input label="Monthly (₹)" type="number" value={form.prices.monthly} onChange={(e) => setForm(f => ({ ...f, prices: { ...f.prices, monthly: parseInt(e.target.value) || 0 } }))} />
-              <Input label="Quarterly (₹)" type="number" value={form.prices.quarterly} onChange={(e) => setForm(f => ({ ...f, prices: { ...f.prices, quarterly: parseInt(e.target.value) || 0 } }))} />
+              <Input label="3 Months (₹)" type="number" value={form.prices.quarterly} onChange={(e) => setForm(f => ({ ...f, prices: { ...f.prices, quarterly: parseInt(e.target.value) || 0 } }))} />
+              <Input label="6 Months (₹)" type="number" value={form.prices.semiAnnual} onChange={(e) => setForm(f => ({ ...f, prices: { ...f.prices, semiAnnual: parseInt(e.target.value) || 0 } }))} />
               <Input label="Yearly (₹)" type="number" value={form.prices.yearly} onChange={(e) => setForm(f => ({ ...f, prices: { ...f.prices, yearly: parseInt(e.target.value) || 0 } }))} />
             </div>
           </div>

@@ -212,13 +212,14 @@ const swaggerDefinition = {
         properties: {
           _id: { type: 'string' },
           name: { type: 'string' },
-          key: { type: 'string', enum: ['free', 'starter', 'professional', 'enterprise'] },
+          key: { type: 'string' },
           description: { type: 'string' },
           prices: {
             type: 'object',
             properties: {
               monthly: { type: 'number' },
               quarterly: { type: 'number' },
+              semiAnnual: { type: 'number' },
               yearly: { type: 'number' }
             }
           },

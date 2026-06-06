@@ -447,7 +447,8 @@ export default function CreateOwner() {
                     onChange={(e) => updateForm('billingCycle', e.target.value)}
                     options={[
                       { value: 'monthly', label: 'Monthly' },
-                      { value: 'quarterly', label: 'Quarterly' },
+                      { value: 'quarterly', label: '3 Months' },
+                      { value: 'semi_annual', label: '6 Months' },
                       { value: 'yearly', label: 'Yearly' }
                     ]}
                   />

@@ -21,7 +21,7 @@ const subscriptionInfoSchema = new mongoose.Schema({
   currentPeriodEnd: Date,
   billingCycle: {
     type: String,
-    enum: ['monthly', 'quarterly', 'yearly'],
+    enum: ['monthly', 'quarterly', 'semi_annual', 'yearly'],
     default: 'monthly'
   }
 }, { _id: false });

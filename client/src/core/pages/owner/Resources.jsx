@@ -7,7 +7,7 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { PageLoader } from '../../components/common/Loader';
-import { Plus, Edit2, Trash2, Wifi, WifiOff, Wrench, Sparkles, Crown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Wifi, WifiOff, Wrench, Crown, Headset } from 'lucide-react';
 import { getBusinessLabels } from '../../services/businessLabels';
 
 export default function Resources() {
@@ -80,7 +80,7 @@ export default function Resources() {
     } catch (err) {
       const errCode = err.response?.data?.error?.code;
       const errMsg = err.response?.data?.error?.message || 'Failed to save resource';
-      if (errCode === 'TIER_LIMIT_REACHED') {
+      if (errCode === 'TIER_LIMIT_REACHED' || errCode === 'BRANCH_LIMIT_REACHED') {
         setTierError(errMsg);
         setShowModal(false);
       } else {
@@ -178,50 +178,23 @@ export default function Resources() {
         )}
       </div>
 
-      {/* Tier Limit Upgrade Modal */}
-      <Modal open={!!tierError} onClose={() => setTierError(null)} title="Plan Limit Reached" size="md">
-        <div className="text-center py-4">
+      {/* Tier Limit Reached Modal */}
+      <Modal open={!!tierError} onClose={() => setTierError(null)} title="Plan Limit Reached" size="sm">
+        <div className="text-center py-6">
           <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
             <Crown className="w-8 h-8 text-amber-600 dark:text-amber-400" />
           </div>
-          <h3 className="text-lg font-semibold text-text-primary mb-2">Upgrade to Add More Resources</h3>
-          <p className="text-sm text-text-muted mb-6">
+          <p className="text-sm text-text-muted mb-6 leading-relaxed">
             {tierError}
           </p>
-          <div className="grid grid-cols-1 gap-3 mb-6">
-            <div className="border border-border rounded-xl p-4 text-left hover:border-primary-500 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-text-primary">Professional</h4>
-                  <p className="text-xs text-text-muted mt-0.5">Up to 50 resources, advanced reports & more</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-text-primary">₹1,499<span className="text-xs font-normal text-text-muted">/mo</span></p>
-                  <span className="inline-block mt-1 px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">Popular</span>
-                </div>
-              </div>
-              <Button size="sm" variant="primary" icon={Sparkles} className="mt-3 w-full" onClick={() => { setTierError(null); window.location.href = '/owner/settings?tab=subscription'; }}>
-                Upgrade to Professional
-              </Button>
-            </div>
-            <div className="border border-border rounded-xl p-4 text-left hover:border-primary-500 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-text-primary">Enterprise</h4>
-                  <p className="text-xs text-text-muted mt-0.5">Unlimited resources, dedicated support & custom branding</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-text-primary">₹2,999<span className="text-xs font-normal text-text-muted">/mo</span></p>
-                </div>
-              </div>
-              <Button size="sm" variant="primary" icon={Crown} className="mt-3 w-full" onClick={() => { setTierError(null); window.location.href = '/owner/settings?tab=subscription'; }}>
-                Upgrade to Enterprise
-              </Button>
-            </div>
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" icon={Headset} onClick={() => { setTierError(null); }}>
+              Contact Administrator
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setTierError(null)}>
+              Maybe Later
+            </Button>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setTierError(null)}>
-            Maybe Later
-          </Button>
         </div>
       </Modal>
 

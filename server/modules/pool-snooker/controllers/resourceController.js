@@ -68,11 +68,9 @@ export const createResource = async (req, res, next) => {
     if (tenant) {
       const resourceCount = await VenueResource.countDocuments({ tenantId: req.tenantId });
       if (resourceCount >= tenant.maxResources) {
-        const planNames = { 2: 'Free / Trial', 15: 'Starter', 50: 'Professional', 9999: 'Enterprise' };
-        const planName = planNames[tenant.maxResources] || 'current';
         return error(res, {
           statusCode: 403,
-          message: `Your ${planName} plan allows up to ${tenant.maxResources} resources. Upgrade your plan to create more.`,
+          message: 'You\'ve reached the resource limit on your current plan. Please contact your administrator to upgrade your plan and unlock additional resources.',
           code: 'TIER_LIMIT_REACHED'
         });
       }

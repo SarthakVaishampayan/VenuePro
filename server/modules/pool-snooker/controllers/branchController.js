@@ -1,4 +1,5 @@
 import { getBusinessModel } from '../../../core/services/moduleRegistry.js';
+import Tenant from '../../../core/models/Tenant.js';
 import Branch from '../models/Branch.js';
 import VenueResource from '../models/VenueResource.js';
 import StaffUser from '../models/StaffUser.js';
@@ -122,6 +123,17 @@ export const createBranch = async (req, res, next) => {
 
     if (!name) {
       return error(res, { statusCode: 400, message: 'Branch name is required', code: 'MISSING_FIELDS' });
+    }
+
+    // Check branch limit
+    const tenant = await Tenant.findById(req.tenantId).select('maxBranches').lean();
+    const branchCount = await Branch.countDocuments({ tenantId: req.tenantId });
+    if (branchCount >= (tenant?.maxBranches ?? 1)) {
+      return error(res, {
+        statusCode: 400,
+        message: 'You\'ve reached the branch limit on your current plan. Please contact your administrator to upgrade your plan and unlock additional branches.',
+        code: 'BRANCH_LIMIT_REACHED'
+      });
     }
 
     const branch = await Branch.create({

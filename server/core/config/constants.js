@@ -161,6 +161,7 @@ export const TICKET_PRIORITY = {
 export const BILLING_CYCLES = {
   MONTHLY: 'monthly',
   QUARTERLY: 'quarterly',
+  SEMI_ANNUAL: 'semi_annual',
   YEARLY: 'yearly'
 };
 

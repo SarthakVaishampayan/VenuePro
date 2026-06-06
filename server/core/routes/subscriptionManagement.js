@@ -18,7 +18,7 @@ const router = express.Router();
 const recordPaymentSchema = z.object({
   tenantId: z.string().min(1, 'Tenant ID is required'),
   planId: z.string().optional(),
-  billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).default('monthly'),
+  billingCycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']).default('monthly'),
   amount: z.number().min(0, 'Amount must be non-negative'),
   paymentMode: z.enum(['cash', 'bank_transfer', 'upi', 'cheque']),
   paymentReference: z.string().max(100).optional(),
@@ -33,7 +33,7 @@ const statusChangeSchema = z.object({
 });
 
 const renewSchema = z.object({
-  billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).optional(),
+  billingCycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']).optional(),
   amount: z.number().min(0).optional(),
   months: z.number().int().min(1).max(36).optional()
 });
@@ -308,7 +308,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       if (planId) {
         plan = await SubscriptionPlan.findById(planId);
       } else {
-        plan = await SubscriptionPlan.findOne({ key: 'starter' });
+        plan = await SubscriptionPlan.findOne({ isActive: true }).sort({ sortOrder: 1, 'prices.monthly': 1 });
       }
 
       if (!plan) {
@@ -317,7 +317,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
 
       // Create new subscription
       const now = new Date();
-      const cycleMonths = billingCycle === 'yearly' ? 12 : billingCycle === 'quarterly' ? 3 : 1;
+      const cycleMonths = billingCycle === 'yearly' ? 12 : billingCycle === 'semi_annual' ? 6 : billingCycle === 'quarterly' ? 3 : 1;
       const periodEnd = new Date(now);
       periodEnd.setMonth(periodEnd.getMonth() + cycleMonths);
 
@@ -328,7 +328,7 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
           name: plan.name,
           key: plan.key,
           prices: plan.prices,
-          limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 2, staff: plan.limits?.staff || 2 }
+          limits: { branches: plan.limits?.branches ?? 1, resources: plan.limits?.resources ?? 2, staff: plan.limits?.staff ?? 2 }
         },
         billingCycle,
         amount,
@@ -367,14 +367,14 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
             name: plan.name,
             key: plan.key,
             prices: plan.prices,
-            limits: { branches: plan.limits?.branches || 1, resources: plan.limits?.resources || 2, staff: plan.limits?.staff || 2 }
+            limits: { branches: plan.limits?.branches ?? 1, resources: plan.limits?.resources ?? 2, staff: plan.limits?.staff ?? 2 }
           };
         }
       }
 
       // Extend period if requested
       if (extendPeriod) {
-        const cycleMonths = billingCycle === 'yearly' ? 12 : billingCycle === 'quarterly' ? 3 : 1;
+        const cycleMonths = billingCycle === 'yearly' ? 12 : billingCycle === 'semi_annual' ? 6 : billingCycle === 'quarterly' ? 3 : 1;
         const now = new Date();
         // If period already ended, start from now; otherwise extend from current end
         const baseDate = subscription.currentPeriodEnd && subscription.currentPeriodEnd > now
@@ -470,14 +470,17 @@ router.post('/record-payment', superAdminAuth, validateBody(recordPaymentSchema)
       });
     }
 
-    // Also update tenant's subscription info
+    // Also update tenant's subscription info + enforcement limits
     await Tenant.findByIdAndUpdate(tenantId, {
       $set: {
         'subscription.planId': subscription.planId,
         'subscription.status': 'active',
         'subscription.currentPeriodStart': subscription.currentPeriodStart,
         'subscription.currentPeriodEnd': subscription.currentPeriodEnd,
-        'subscription.billingCycle': billingCycle
+        'subscription.billingCycle': billingCycle,
+        maxBranches: subscription.planSnapshot?.limits?.branches ?? 1,
+        maxResources: subscription.planSnapshot?.limits?.resources ?? 2,
+        maxStaff: subscription.planSnapshot?.limits?.staff ?? 2
       }
     });
 
@@ -572,7 +575,7 @@ router.post('/:id/renew', superAdminAuth, validateBody(renewSchema), async (req,
 
     const billingCycle = req.body.billingCycle || subscription.billingCycle;
     const amount = req.body.amount || subscription.amount;
-    const months = req.body.months || (billingCycle === 'yearly' ? 12 : billingCycle === 'quarterly' ? 3 : 1);
+    const months = req.body.months || (billingCycle === 'yearly' ? 12 : billingCycle === 'semi_annual' ? 6 : billingCycle === 'quarterly' ? 3 : 1);
 
     const now = new Date();
     const baseDate = subscription.currentPeriodEnd && subscription.currentPeriodEnd > now
@@ -634,7 +637,7 @@ router.post('/:id/generate-invoice', superAdminAuth, async (req, res, next) => {
 
     const planName = subscription.planSnapshot?.name || 'Subscription';
     const now = new Date();
-    const cycleMonths = subscription.billingCycle === 'yearly' ? 12 : subscription.billingCycle === 'quarterly' ? 3 : 1;
+    const cycleMonths = subscription.billingCycle === 'yearly' ? 12 : subscription.billingCycle === 'semi_annual' ? 6 : subscription.billingCycle === 'quarterly' ? 3 : 1;
     const periodStart = subscription.currentPeriodStart || now;
     const periodEnd = new Date(periodStart);
     periodEnd.setMonth(periodEnd.getMonth() + cycleMonths);

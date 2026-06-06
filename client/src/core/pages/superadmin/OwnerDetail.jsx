@@ -121,7 +121,7 @@ export default function OwnerDetail() {
             </div>
             <div>
               <p className="text-xs text-text-muted">Plan</p>
-              <p className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || '—'}</p>
+              <p className="text-sm font-medium text-text-primary">{sub?.planSnapshot?.name || sub?.planSnapshot?.key || '—'}</p>
             </div>
           </div>
         </Card>
@@ -207,7 +207,7 @@ export default function OwnerDetail() {
               <>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-sm text-text-muted">Plan</span>
-                  <span className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || 'N/A'}</span>
+                  <span className="text-sm font-medium text-text-primary">{sub?.planSnapshot?.name || sub?.planSnapshot?.key || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-sm text-text-muted">Status</span>
@@ -254,7 +254,7 @@ export default function OwnerDetail() {
               <>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-sm text-text-muted">Plan</span>
-                  <span className="text-sm font-medium text-text-primary capitalize">{sub?.planSnapshot?.key || 'N/A'}</span>
+                  <span className="text-sm font-medium text-text-primary">{sub?.planSnapshot?.name || sub?.planSnapshot?.key || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-sm text-text-muted">Billing Cycle</span>
