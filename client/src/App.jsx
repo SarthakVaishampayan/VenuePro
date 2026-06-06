@@ -69,6 +69,7 @@ import StaffLayout from './core/components/layout/StaffLayout';
 import PlayerLogin from './core/pages/player/PlayerLogin';
 import PlayerSignup from './core/pages/player/PlayerSignup';
 import PlayerForgotPassword from './core/pages/player/PlayerForgotPassword';
+import PlayerResetPassword from './core/pages/player/PlayerResetPassword';
 import PlayerDashboard from './core/pages/player/PlayerDashboard';
 import PlayerBookings from './core/pages/player/PlayerBookings';
 import PlayerPayments from './core/pages/player/PlayerPayments';
@@ -320,6 +321,7 @@ export default function App() {
                 <Route path="/play/login" element={<PlayerPublicRoute><PlayerLogin /></PlayerPublicRoute>} />
                 <Route path="/play/signup" element={<PlayerPublicRoute><PlayerSignup /></PlayerPublicRoute>} />
                 <Route path="/play/forgot-password" element={<PlayerForgotPassword />} />
+                <Route path="/play/reset-password/:token" element={<PlayerResetPassword />} />
                 <Route path="/play" element={<PlayerProtectedRoute><PlayerLayout /></PlayerProtectedRoute>}>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<PlayerDashboard />} />

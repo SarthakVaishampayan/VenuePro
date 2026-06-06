@@ -8,6 +8,7 @@ export default function PlayerForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
@@ -19,7 +20,8 @@ export default function PlayerForgotPassword() {
     setLoading(true);
     setError('');
     try {
-      await playerApi.post('/auth/forgot-password', { email });
+      const res = await playerApi.post('/auth/forgot-password', { email });
+      setSuccessMessage(res.data?.message || 'Reset link has been sent to your email. Please check your inbox.');
       setSent(true);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to send reset email.');
@@ -48,7 +50,10 @@ export default function PlayerForgotPassword() {
                 <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                If an account with <strong className="text-slate-900 dark:text-white">{email}</strong> exists, we've sent password reset instructions.
+                {successMessage}
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                Sent to: <strong className="text-slate-700 dark:text-slate-300">{email}</strong>
               </p>
               <Link to="/play/login" className="inline-flex items-center gap-1 mt-4 text-sm text-violet-600 hover:text-violet-700 font-medium">
                 <ArrowLeft className="w-4 h-4" /> Back to login

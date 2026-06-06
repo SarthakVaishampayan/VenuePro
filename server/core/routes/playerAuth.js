@@ -13,6 +13,8 @@ import { playerAuth } from '../middleware/playerAuth.js';
 import { error as errorResponse, success as successResponse } from '../utils/responseHelper.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwtHelper.js';
 import Player from '../models/Player.js';
+import eventBus from '../events/eventBus.js';
+import { EVENT_TYPES } from '../events/eventTypes.js';
 
 const router = express.Router();
 
@@ -474,11 +476,12 @@ router.post('/forgot-password', authLimiter, async (req, res, next) => {
       });
     }
 
-    const player = await Player.findOne({ email });
+    const player = await Player.findOne({ email: email.toLowerCase().trim() });
     if (!player) {
-      // Don't reveal if email exists
-      return successResponse(res, {
-        message: 'If an account with that email exists, a reset link has been sent.'
+      return errorResponse(res, {
+        statusCode: 404,
+        message: 'No account connected to this email id',
+        code: 'EMAIL_NOT_FOUND'
       });
     }
 
@@ -487,8 +490,19 @@ router.post('/forgot-password', authLimiter, async (req, res, next) => {
     player.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
     await player.save();
 
+    // Build the reset link
+    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    const resetLink = `${appUrl}/play/reset-password/${resetToken}`;
+
+    // Send password reset email via event bus (subscribers.js handles the email dispatch)
+    eventBus.emit(EVENT_TYPES.PASSWORD_RESET, {
+      email: player.email,
+      name: player.fullName,
+      resetLink
+    });
+
     return successResponse(res, {
-      message: 'If an account with that email exists, a reset link has been sent.',
+      message: 'Reset link has been sent to your email. Please check your inbox.',
       data: process.env.NODE_ENV === 'development' ? { resetToken } : undefined
     });
   } catch (err) {
