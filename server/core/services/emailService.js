@@ -1,46 +1,58 @@
 // ============================================================
 // EMAIL SERVICE — Transactional Emails
 // ============================================================
-// Handles all outgoing emails using Mailjet.
+// Handles all outgoing emails using Nodemailer with Resend SMTP.
 // In development, emails are logged to console.
-// In production, uses the Mailjet API.
+// In production, uses SMTP transport via Resend.
 
-import Mailjet from 'node-mailjet';
 import { logger } from '../config/logger.js';
 
 // Use environment variables for email configuration
-const MAILJET_API_KEY = process.env.MAILJET_API_KEY || '';
-const MAILJET_API_SECRET = process.env.MAILJET_API_SECRET || '';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@venuepro.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.resend.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+const SMTP_USER = process.env.SMTP_USER || 'resend';
+const SMTP_PASS = process.env.SMTP_PASS || process.env.RESEND_API_KEY || '';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@venuepro.live';
 const FROM_NAME = process.env.FROM_NAME || 'VenuePro';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
-let mailjetClient = null;
+let transporter = null;
 
 /**
- * Lazily initialize the Mailjet client.
- * Falls back to console-only mode if no API credentials are configured.
+ * Lazily initialize the nodemailer transporter.
+ * Falls back to console-only mode if nodemailer is not installed
+ * or SMTP credentials are not configured.
  */
-const getClient = () => {
-  if (mailjetClient) return mailjetClient;
+const getTransporter = async () => {
+  if (transporter) return transporter;
 
-  if (MAILJET_API_KEY && MAILJET_API_SECRET) {
-    mailjetClient = Mailjet.apiConnect(MAILJET_API_KEY, MAILJET_API_SECRET);
-    logger.info('[EmailService] Mailjet client configured');
-  } else {
-    // Development mode — log emails to console
-    logger.info('[EmailService] No Mailjet credentials set — emails will be logged to console');
-    mailjetClient = {
-      post: () => ({
-        request: async (opts) => {
-          logger.info(`[Email Mock] ${JSON.stringify(opts)}`);
-          return { body: { Messages: [{ Status: 'success', To: [{ Email: 'mock' }] }] } };
+  try {
+    const nodemailer = await import('nodemailer');
+
+    if (SMTP_HOST && SMTP_PASS) {
+      transporter = nodemailer.default.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT === 465,
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS
         }
-      })
-    };
+      });
+      logger.info(`[EmailService] SMTP transport configured (${SMTP_HOST}:${SMTP_PORT})`);
+    } else {
+      // Development mode — log emails to console using JSON transport
+      transporter = nodemailer.default.createTransport({
+        jsonTransport: true
+      });
+      logger.info('[EmailService] Using JSON transport (emails logged to console)');
+    }
+  } catch (err) {
+    logger.warn(`[EmailService] nodemailer not available: ${err.message}. Emails will be logged only.`);
+    transporter = { sendMail: async (opts) => { logger.info(`[Email Mock] ${JSON.stringify(opts)}`); return { messageId: 'mock' }; } };
   }
 
-  return mailjetClient;
+  return transporter;
 };
 
 class EmailService {
@@ -49,35 +61,18 @@ class EmailService {
    */
   async sendRaw({ to, subject, text, html }) {
     try {
-      const client = getClient();
-
-      const request = await client.post('send', { version: 'v3.1' }).request({
-        Messages: [
-          {
-            From: {
-              Email: FROM_EMAIL,
-              Name: FROM_NAME
-            },
-            To: [
-              {
-                Email: to
-              }
-            ],
-            Subject: subject,
-            TextPart: text,
-            HTMLPart: html || text
-          }
-        ]
+      const transport = await getTransporter();
+      const info = await transport.sendMail({
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject,
+        text,
+        html: html || text
       });
-
-      const message = request.body?.Messages?.[0];
-      logger.debug(`[EmailService] Email sent to ${to}: ${subject} (status: ${message?.Status})`);
+      logger.debug(`[EmailService] Email sent to ${to}: ${subject} (id: ${info.messageId})`);
       return true;
     } catch (error) {
-      // Mailjet throws on API errors, catch them here
-      const statusCode = error.statusCode || error.status;
-      const errorMsg = error.message || JSON.stringify(error);
-      logger.error(`[EmailService] Failed to send email to ${to}: ${errorMsg}${statusCode ? ` (${statusCode})` : ''}`);
+      logger.error(`[EmailService] Failed to send email to ${to}: ${error.message}`);
       return false;
     }
   }
