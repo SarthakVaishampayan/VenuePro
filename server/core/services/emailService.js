@@ -1,59 +1,53 @@
 // ============================================================
 // EMAIL SERVICE — Transactional Emails
 // ============================================================
-// Handles all outgoing emails using Nodemailer with Resend SMTP.
+// Handles all outgoing emails using the Resend HTTP API.
 // In development, emails are logged to console.
-// In production, uses SMTP transport via Resend.
+// In production, uses the Resend REST API (port 443).
+// This avoids SMTP port blocking issues on cloud providers.
 
 import { logger } from '../config/logger.js';
 
-// Use environment variables for email configuration
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.resend.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-const SMTP_USER = process.env.SMTP_USER || 'resend';
-const SMTP_PASS = process.env.SMTP_PASS || process.env.RESEND_API_KEY || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.SMTP_PASS || '';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@venuepro.live';
 const FROM_NAME = process.env.FROM_NAME || 'VenuePro';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
-
-let transporter = null;
+const RESEND_API_URL = 'https://api.resend.com/emails';
 
 /**
- * Lazily initialize the nodemailer transporter.
- * Falls back to console-only mode if nodemailer is not installed
- * or SMTP credentials are not configured.
+ * Send email via Resend HTTP API.
+ * Falls back to console-only mode if no API key is configured.
  */
-const getTransporter = async () => {
-  if (transporter) return transporter;
-
-  try {
-    const nodemailer = await import('nodemailer');
-
-    if (SMTP_HOST && SMTP_PASS) {
-      transporter = nodemailer.default.createTransport({
-        host: SMTP_HOST,
-        port: SMTP_PORT,
-        secure: SMTP_PORT === 465,
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS
-        }
-      });
-      logger.info(`[EmailService] SMTP transport configured (${SMTP_HOST}:${SMTP_PORT})`);
-    } else {
-      // Development mode — log emails to console using JSON transport
-      transporter = nodemailer.default.createTransport({
-        jsonTransport: true
-      });
-      logger.info('[EmailService] Using JSON transport (emails logged to console)');
-    }
-  } catch (err) {
-    logger.warn(`[EmailService] nodemailer not available: ${err.message}. Emails will be logged only.`);
-    transporter = { sendMail: async (opts) => { logger.info(`[Email Mock] ${JSON.stringify(opts)}`); return { messageId: 'mock' }; } };
+async function sendViaResend({ to, subject, text, html }) {
+  if (!RESEND_API_KEY) {
+    logger.info(`[Email Mock] To: ${to} | Subject: ${subject}`);
+    return true;
   }
 
-  return transporter;
-};
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to: [to],
+      subject,
+      text,
+      html: html || text,
+    }),
+  });
+
+  const body = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`Resend API error (${response.status}): ${body.message || JSON.stringify(body)}`);
+  }
+
+  logger.debug(`[EmailService] Email sent to ${to}: ${subject} (id: ${body.id})`);
+  return true;
+}
 
 class EmailService {
   /**
@@ -61,16 +55,7 @@ class EmailService {
    */
   async sendRaw({ to, subject, text, html }) {
     try {
-      const transport = await getTransporter();
-      const info = await transport.sendMail({
-        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-        to,
-        subject,
-        text,
-        html: html || text
-      });
-      logger.debug(`[EmailService] Email sent to ${to}: ${subject} (id: ${info.messageId})`);
-      return true;
+      return await sendViaResend({ to, subject, text, html });
     } catch (error) {
       logger.error(`[EmailService] Failed to send email to ${to}: ${error.message}`);
       return false;
