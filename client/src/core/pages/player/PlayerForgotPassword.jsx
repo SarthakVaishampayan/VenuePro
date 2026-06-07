@@ -55,6 +55,21 @@ export default function PlayerForgotPassword() {
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
                 Sent to: <strong className="text-slate-700 dark:text-slate-300">{email}</strong>
               </p>
+
+              {/* Spam folder tip */}
+              <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-left">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 dark:text-amber-400 text-base leading-5">📬</span>
+                  <div>
+                    <p className="text-xs font-medium text-amber-800 dark:text-amber-300">Didn't receive the email?</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 leading-relaxed">
+                      If you don't see it in your inbox, please check your <strong>Spam</strong> or <strong>Promotions</strong> folder. 
+                      Adding us to your <strong className="text-amber-800 dark:text-amber-300">contacts</strong> helps ensure future emails reach you.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <Link to="/play/login" className="inline-flex items-center gap-1 mt-4 text-sm text-violet-600 hover:text-violet-700 font-medium">
                 <ArrowLeft className="w-4 h-4" /> Back to login
               </Link>

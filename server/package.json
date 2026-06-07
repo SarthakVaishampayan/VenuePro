@@ -23,6 +23,7 @@
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
+    "node-mailjet": "^6.0.11",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^10.0.0",
