@@ -12,8 +12,8 @@ echo "============================================"
 # ─── Configuration — EDIT THESE ───────────────────────────
 REPO_URL="https://github.com/SarthakVaishampayan/VenuePro.git"
 APP_DIR="/root/venuepro-saas"
-DOMAIN=""  # e.g., "venuepro.yourdomain.com" (leave empty for IP-only)
-ADMIN_EMAIL=""  # e.g., "admin@yourdomain.com" (for SSL cert)
+DOMAIN="venuepro.live"  # Your domain
+ADMIN_EMAIL="sarthakrocks2003@gmail.com"  # Your email (for SSL cert)
 # ──────────────────────────────────────────────────────────
 
 # Colors
@@ -122,8 +122,15 @@ JWT_SECRET=change-this-to-a-random-64-char-string
 JWT_REFRESH_SECRET=change-this-to-another-random-64-char-string
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
-CORS_ORIGINS=https://your-frontend.vercel.app
+APP_URL=https://venuepro.live
+CORS_ORIGINS=https://venuepro.live
 REQUEST_SIZE_LIMIT=10mb
+
+# Mailjet (transactional emails)
+MAILJET_API_KEY=your-mailjet-api-key
+MAILJET_API_SECRET=your-mailjet-secret-key
+FROM_EMAIL=your-verified-sender@email.com
+FROM_NAME=VenuePro
 ENVEOF
   warn ">>> EDIT server/.env with strong JWT secrets! <<<"
 else
