@@ -33,7 +33,8 @@ const auditLogSchema = new mongoose.Schema({
       'plan_change', 'status_change', 'suspension', 'payment_recorded',
       'invoice_generated', 'invoice_cancelled', 'ticket_created',
       'ticket_updated', 'ticket_resolved', 'tenant_provisioned',
-      'tenant_suspended', 'tenant_activated', 'bulk_action',
+      'tenant_suspended', 'tenant_activated', 'tenant_hidden_from_dashboard',
+      'tenant_shown_on_dashboard', 'toggle-visibility', 'bulk_action',
       'export', 'import', 'system_action'
     ]
   },

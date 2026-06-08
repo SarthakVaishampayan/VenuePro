@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Mail, Phone, Building2, Trash2, MoreHorizontal, RefreshCw, Search, ShieldOff, ShieldCheck } from 'lucide-react';
+import { Plus, Mail, Phone, Building2, Trash2, MoreHorizontal, RefreshCw, Search, ShieldOff, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -20,6 +20,7 @@ export default function Owners() {
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [suspendModal, setSuspendModal] = useState({ open: false, tenant: null, loading: false, reason: '', error: null });
+  const [togglingVisibility, setTogglingVisibility] = useState(null);
   const navigate = useNavigate();
 
   const fetchTenants = useCallback(async () => {
@@ -134,7 +135,7 @@ export default function Owners() {
     {
       key: 'actions',
       label: '',
-      width: '80px',
+      width: '110px',
       render: (row) => (
         <div className="flex items-center gap-1">
           <button
@@ -161,6 +162,36 @@ export default function Owners() {
             title={row.portalStatus === 'suspended' ? 'Unsuspend tenant' : 'Suspend tenant'}
           >
             {row.portalStatus === 'suspended' ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={async () => {
+              setTogglingVisibility(row._id);
+              try {
+                await api.patch(`/tenants/${row._id}/toggle-visibility`);
+                setTenants(prev => prev.map(t =>
+                  t._id === row._id ? { ...t, visibleOnPlayerDashboard: !t.visibleOnPlayerDashboard } : t
+                ));
+              } catch (err) {
+                console.error('Toggle visibility failed:', err);
+              } finally {
+                setTogglingVisibility(null);
+              }
+            }}
+            disabled={togglingVisibility === row._id}
+            className={`p-1.5 rounded transition-colors ${
+              row.visibleOnPlayerDashboard === false
+                ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+            } ${togglingVisibility === row._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={row.visibleOnPlayerDashboard === false ? 'Hidden from player dashboard — click to show' : 'Visible on player dashboard — click to hide'}
+          >
+            {togglingVisibility === row._id ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : row.visibleOnPlayerDashboard === false ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
           </button>
         </div>
       )

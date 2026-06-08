@@ -427,7 +427,8 @@ router.get('/venues', optionalPlayerAuth, async (req, res, next) => {
   try {
     const filter = {
       portalStatus: 'active',
-      isActive: true
+      isActive: true,
+      visibleOnPlayerDashboard: { $ne: false }
     };
 
     if (req.query.search) {

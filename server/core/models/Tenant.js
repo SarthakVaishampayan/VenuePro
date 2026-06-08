@@ -116,6 +116,11 @@ const tenantSchema = new mongoose.Schema({
     type: String,
     maxlength: 1000
   },
+  // Visibility on player-facing venue dashboard
+  visibleOnPlayerDashboard: {
+    type: Boolean,
+    default: true
+  },
   // Demo tenant management
   isDemo: {
     type: Boolean,

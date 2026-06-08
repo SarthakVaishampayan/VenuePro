@@ -553,6 +553,54 @@ router.post('/:id/unsuspend', superAdminAuth, validateObjectId('id'), auditLogMi
 });
 
 // ============================================================
+// PATCH /api/platform/tenants/:id/toggle-visibility — Toggle player dashboard visibility
+// ============================================================
+
+/**
+ * @swagger
+ * /api/platform/tenants/{id}/toggle-visibility:
+ *   patch:
+ *     tags: [Tenants]
+ *     summary: Toggle whether tenant appears on the player venue dashboard
+ *     description: When toggled off, the tenant is hidden from the public /venues page but remains fully operational for owner/staff login.
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Visibility toggled
+ */
+router.patch('/:id/toggle-visibility', superAdminAuth, validateObjectId('id'), auditLogMiddleware('toggle-visibility', 'tenants'), async (req, res, next) => {
+  try {
+    const tenant = await Tenant.findById(req.params.id);
+    if (!tenant) {
+      return errorResponse(res, { statusCode: 404, message: 'Tenant not found.', code: 'NOT_FOUND' });
+    }
+
+    const newVisibility = !tenant.visibleOnPlayerDashboard;
+    tenant.visibleOnPlayerDashboard = newVisibility;
+    await tenant.save();
+
+    await auditService.log({
+      actorId: req.user.id,
+      actorRole: 'super_admin',
+      tenantId: tenant._id,
+      action: newVisibility ? 'tenant_shown_on_dashboard' : 'tenant_hidden_from_dashboard',
+      module: 'tenants',
+      targetId: tenant._id,
+      targetModel: 'Tenant',
+      description: `Player dashboard visibility ${newVisibility ? 'enabled' : 'disabled'} for '${tenant.businessName}' (${tenant.tenantCode})`
+    });
+
+    return successResponse(res, {
+      message: `Tenant is now ${newVisibility ? 'visible' : 'hidden'} on the player dashboard.`,
+      data: { visibleOnPlayerDashboard: newVisibility }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================
 // POST /api/platform/tenants/:id/reset-password
 // ============================================================
 
