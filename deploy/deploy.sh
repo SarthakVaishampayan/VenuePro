@@ -73,10 +73,15 @@ else
 fi
 
 # ─── 5. Copy Nginx config (in case it changed) ──────────
-echo -e "\n${YELLOW}─── 5. Updating Nginx Config ───${NC}"
-sudo cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/venuepro
-sudo nginx -t && sudo systemctl reload nginx
-log "Nginx config reloaded"
+# ⚠️  DISABLED: This overwrites the SSL config that certbot set up.
+#    If you need to update the nginx config, manually copy it:
+#      sudo cp deploy/nginx.conf /etc/nginx/sites-available/venuepro
+#    Then test & reload:
+#      sudo nginx -t && sudo systemctl reload nginx
+# echo -e "\n${YELLOW}─── 5. Updating Nginx Config ───${NC}"
+# sudo cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/venuepro
+# sudo nginx -t && sudo systemctl reload nginx
+log "Nginx config: skipped (manage manually to preserve SSL)"
 
 # ─── 6. Restart PM2 ──────────────────────────────────────
 echo -e "\n${YELLOW}─── 6. Restarting Application ───${NC}"
