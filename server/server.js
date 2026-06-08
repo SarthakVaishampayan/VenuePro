@@ -26,6 +26,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust Nginx reverse proxy (sets X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // ============================================================
 // SECURITY MIDDLEWARE PIPELINE
 // ============================================================
