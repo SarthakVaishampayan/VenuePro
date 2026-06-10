@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useStaffAuth } from '../../context/StaffAuthContext';
 import Button from '../../components/common/Button';
@@ -106,6 +106,12 @@ export default function StaffLogin() {
           <p className="text-center mt-6 text-sm text-text-muted">
             This portal is for venue staff only.
           </p>
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-sm text-text-muted hover:text-amber-600 transition-colors">
+            ← Back to Home
+          </Link>
         </div>
 
         <p className="text-center mt-6 text-xs text-text-muted">

@@ -44,7 +44,7 @@ const FEATURES = [
   },
   {
     icon: Clock,
-    title: 'Session History',
+    title: 'Session Details',
     description: 'See exactly when you played, for how long, and what you paid.',
     gradient: 'from-indigo-500 to-violet-500'
   },
@@ -249,9 +249,9 @@ export default function PlayerLanding() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { number: '10K+', label: 'Active Players' },
-              { number: '500+', label: 'Partner Venues' },
-              { number: '50K+', label: 'Sessions Tracked' },
+              { number: '1K+', label: 'Active Players' },
+              { number: '50+', label: 'Partner Venues' },
+              { number: '1K+', label: 'Sessions Tracked' },
               { number: '4.9★', label: 'Player Rating' }
             ].map((stat, i) => (
               <div key={i}>

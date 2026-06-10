@@ -118,6 +118,12 @@ export default function OwnerLogin() {
           </p>
         </div>
 
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-sm text-text-muted hover:text-emerald-600 transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
+
         <p className="text-center mt-6 text-xs text-text-muted">
           VenuePro SaaS v1.0 — Owner Access
         </p>

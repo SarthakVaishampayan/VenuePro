@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Building2, User, CreditCard, Sparkles, Eye, EyeOff, Loader2 } from 'lucide-react';
 import publicApi from '../../services/publicApi';
 import Button from '../../components/common/Button';
@@ -325,6 +325,11 @@ export default function Signup() {
             </div>
           </Card>
         )}
+        <div className="mt-8 text-center">
+          <Link to="/" className="text-sm text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
       </div>
     </div>
   );

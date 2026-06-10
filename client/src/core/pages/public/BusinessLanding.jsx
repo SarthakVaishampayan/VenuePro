@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ArrowRight, Clock, Users, Shield, BarChart3, Smartphone, Globe, Sparkles, ChevronDown, X, Play, Send, Mail, Phone, Building2 } from 'lucide-react';
+import { Check, ArrowRight, Clock, Timer, CreditCard, Receipt, Users, Shield, BarChart3, Smartphone, Globe, Sparkles, ChevronDown, X, Play, Send, Mail, Phone, Building2 } from 'lucide-react';
 import publicApi, { startDemo } from '../../services/publicApi';
 import { clsx } from 'clsx';
 import Input from '../../components/common/Input';
@@ -14,12 +14,78 @@ const BUSINESS_TYPES = [
 ];
 
 const FEATURES = [
-  { icon: Clock, title: 'Session Timer', description: 'Auto 5-min rounding timer prevents disputes over partial minutes.' },
+  { icon: Clock, title: 'Session Booking', description: 'Duration-based session management for courts and turfs.' },
+  { icon: Timer, title: 'Time-Based Billing', description: 'Precise timer-based billing for pool tables and gaming consoles.' },
   { icon: Users, title: 'Customer Management', description: 'Track regulars, dues, and booking history with partial payment support.' },
+  { icon: CreditCard, title: 'Payments & Dues', description: 'Accept payments, manage partial payments, and track customer dues.' },
   { icon: Shield, title: 'Staff Controls', description: 'Role-based access for managers, staff, and cashiers with permissions.' },
   { icon: BarChart3, title: 'Analytics & Reports', description: 'Revenue trends, payment splits, and resource utilization insights.' },
+  { icon: Receipt, title: 'Expense Tracking', description: 'Track operational expenses and manage venue costs efficiently.' },
   { icon: Smartphone, title: 'Mobile-Optimized', description: 'Works on any device — phone, tablet, or desktop.' },
   { icon: Globe, title: 'Multi-Business Types', description: 'Pool, snooker, turf, gaming — one platform for any venue.' }
+];
+
+const PLANS_BY_MODULE = {
+  pool_snooker: {
+    name: 'Pool & Snooker',
+    icon: '🎱',
+    comingSoon: false,
+    description: 'Timer-based billing for tables',
+    plans: [
+      { name: 'Trial', desc: 'Start with a 7-day free trial.', badge: null, prices: { monthly: 0, quarterly: 0, halfYearly: 0, yearly: 0 }, features: [{ n: '1 Table', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Starter', desc: '3 Tables · 1 Staff', badge: null, prices: { monthly: 459, quarterly: 1249, halfYearly: 2199, yearly: 3849 }, features: [{ n: '3 Tables', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Standard', desc: '5 Tables · 2 Staff', badge: null, prices: { monthly: 649, quarterly: 1749, halfYearly: 3099, yearly: 5499 }, features: [{ n: '5 Tables', i: true }, { n: '2 Staff Accounts', i: true }] },
+      { name: 'Plus', desc: '8 Tables · 3 Staff', badge: 'Most Popular', prices: { monthly: 999, quarterly: 2699, halfYearly: 4799, yearly: 8399 }, features: [{ n: '8 Tables', i: true }, { n: '3 Staff Accounts', i: true }] },
+      { name: 'Pro', desc: '10 Tables · 5 Staff', badge: null, prices: { monthly: 1249, quarterly: 3349, halfYearly: 5999, yearly: 10499 }, features: [{ n: '10 Tables', i: true }, { n: '5 Staff Accounts', i: true }] },
+      { name: 'Business', desc: '12 Tables · 5 Staff', badge: null, prices: { monthly: 1499, quarterly: 4049, halfYearly: 7199, yearly: 12599 }, features: [{ n: '12 Tables', i: true }, { n: '5 Staff Accounts', i: true }] },
+      { name: 'Enterprise', desc: '15 Tables · 6 Staff', badge: null, prices: { monthly: 1699, quarterly: 4599, halfYearly: 8149, yearly: 14299 }, features: [{ n: '15 Tables', i: true }, { n: '6 Staff Accounts', i: true }] },
+    ]
+  },
+  pickleball: {
+    name: 'Pickleball Court',
+    icon: '🏓',
+    comingSoon: false,
+    description: 'Court booking, duration-based sessions',
+    plans: [
+      { name: 'Trial', desc: 'Start with a 7-day free trial.', badge: null, prices: { monthly: 0, quarterly: 0, halfYearly: 0, yearly: 0 }, features: [{ n: '1 Court', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Starter', desc: '1 Court · 2 Staff', badge: null, prices: { monthly: 699, quarterly: 1899, halfYearly: 3399, yearly: 5899 }, features: [{ n: '1 Court', i: true }, { n: '2 Staff Accounts', i: true }] },
+      { name: 'Professional', desc: '2 Courts · 4 Staff', badge: 'Most Popular', prices: { monthly: 1099, quarterly: 2949, halfYearly: 6499, yearly: 9199 }, features: [{ n: '2 Courts', i: true }, { n: '4 Staff Accounts', i: true }] },
+      { name: 'Enterprise', desc: '3 Courts · 6 Staff', badge: null, prices: { monthly: 1799, quarterly: 4799, halfYearly: 8599, yearly: 14999 }, features: [{ n: '3 Courts', i: true }, { n: '6 Staff Accounts', i: true }] },
+    ]
+  },
+  cricket_football: {
+    name: 'Cricket / Football Turf',
+    icon: '🏏',
+    comingSoon: false,
+    description: 'Turf booking, duration-based sessions',
+    plans: [
+      { name: 'Trial', desc: 'Start with a 7-day free trial.', badge: null, prices: { monthly: 0, quarterly: 0, halfYearly: 0, yearly: 0 }, features: [{ n: '1 Turf', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Starter', desc: '1 Turf · 2 Staff', badge: null, prices: { monthly: 799, quarterly: 2099, halfYearly: 3799, yearly: 6699 }, features: [{ n: '1 Turf', i: true }, { n: '2 Staff Accounts', i: true }] },
+      { name: 'Professional', desc: '2 Turfs · 4 Staff', badge: 'Most Popular', prices: { monthly: 1399, quarterly: 3699, halfYearly: 6699, yearly: 11499 }, features: [{ n: '2 Turfs', i: true }, { n: '4 Staff Accounts', i: true }] },
+      { name: 'Enterprise', desc: '3 Turfs · 6 Staff', badge: null, prices: { monthly: 1999, quarterly: 5399, halfYearly: 9499, yearly: 16499 }, features: [{ n: '3 Turfs', i: true }, { n: '6 Staff Accounts', i: true }] },
+    ]
+  },
+  gaming_zone: {
+    name: 'Gaming Zone',
+    icon: '🎮',
+    comingSoon: false,
+    description: 'Console/PC/VR session billing',
+    plans: [
+      { name: 'Trial', desc: 'Start with a 7-day free trial.', badge: null, prices: { monthly: 0, quarterly: 0, halfYearly: 0, yearly: 0 }, features: [{ n: '1 Console', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Starter', desc: '3 Consoles · 1 Staff', badge: null, prices: { monthly: 399, quarterly: 1049, halfYearly: 1899, yearly: 3349 }, features: [{ n: '3 Consoles', i: true }, { n: '1 Staff Account', i: true }] },
+      { name: 'Standard', desc: '5 Consoles · 2 Staff', badge: 'Most Popular', prices: { monthly: 599, quarterly: 1599, halfYearly: 2849, yearly: 4999 }, features: [{ n: '5 Consoles', i: true }, { n: '2 Staff Accounts', i: true }] },
+      { name: 'Plus', desc: '8 Consoles · 3 Staff', badge: null, prices: { monthly: 899, quarterly: 2399, halfYearly: 4299, yearly: 7499 }, features: [{ n: '8 Consoles', i: true }, { n: '3 Staff Accounts', i: true }] },
+      { name: 'Pro', desc: '10 Consoles · 4 Staff', badge: null, prices: { monthly: 1199, quarterly: 3199, halfYearly: 5749, yearly: 9999 }, features: [{ n: '10 Consoles', i: true }, { n: '4 Staff Accounts', i: true }] },
+      { name: 'Enterprise', desc: '15 Consoles · 5 Staff', badge: null, prices: { monthly: 1599, quarterly: 4299, halfYearly: 7649, yearly: 12599 }, features: [{ n: '15 Consoles', i: true }, { n: '5 Staff Accounts', i: true }] },
+    ]
+  }
+};
+
+const BILLING_CYCLES = [
+  { key: 'monthly', label: 'Monthly', suffix: '/month', savePct: null },
+  { key: 'quarterly', label: '3 Months', suffix: '/3 mos', savePct: 10 },
+  { key: 'halfYearly', label: '6 Months', suffix: '/6 mos', savePct: 20 },
+  { key: 'yearly', label: 'Yearly', suffix: '/yr', savePct: 30 },
 ];
 
 const FAQS = [
@@ -33,10 +99,9 @@ const FAQS = [
 
 export default function BusinessLanding() {
   const navigate = useNavigate();
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [openFaq, setOpenFaq] = useState(null);
+  const [activeModule, setActiveModule] = useState('pickleball');
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [openFaq, setOpenFaq] = useState(null);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState('');
@@ -48,13 +113,6 @@ export default function BusinessLanding() {
   const [contactLoading, setContactLoading] = useState(false);
   const [contactSuccess, setContactSuccess] = useState(false);
   const [contactError, setContactError] = useState('');
-
-  useEffect(() => {
-    publicApi.get('/subscription-plans')
-      .then(({ data }) => setPlans(data.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleStartDemo = async (businessTypeKey) => {
     setDemoLoading(true);
@@ -73,13 +131,6 @@ export default function BusinessLanding() {
     } finally {
       setDemoLoading(false);
     }
-  };
-
-  const getPrice = (plan) => {
-    const prices = plan.prices || {};
-    if (billingCycle === 'yearly') return prices.yearly || prices.monthly * 12 * 0.85;
-    if (billingCycle === 'quarterly') return prices.quarterly || prices.monthly * 3;
-    return prices.monthly || 0;
   };
 
   const updateContact = (key, value) => setContactForm(f => ({ ...f, [key]: value }));
@@ -122,12 +173,6 @@ export default function BusinessLanding() {
     }
   };
 
-  const getPeriodLabel = () => {
-    if (billingCycle === 'yearly') return '/year';
-    if (billingCycle === 'quarterly') return '/quarter';
-    return '/month';
-  };
-
   return (
     <div className="overflow-hidden">
       {/* ===== HERO ===== */}
@@ -146,14 +191,7 @@ export default function BusinessLanding() {
           <p className="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
             Manage sessions, track payments, handle dues, and grow your business — all from one powerful dashboard.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2">
-              <Play className="w-4 h-4" /> Try Demo
-            </button>
-            <a href="#pricing" className="px-8 py-3.5 text-base font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-              View Pricing
-            </a>
-          </div>
+
         </div>
       </section>
 
@@ -340,78 +378,172 @@ export default function BusinessLanding() {
       {/* ===== PRICING ===== */}
       <section id="pricing" className="py-20 bg-slate-50 dark:bg-slate-800/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Simple, transparent pricing</h2>
             <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">No hidden fees. No transaction costs.</p>
-            <div className="mt-6 inline-flex items-center gap-3 p-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-              {['monthly', 'quarterly', 'yearly'].map((cycle) => (
+          </div>
+
+          {/* Module Tabs */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {Object.entries(PLANS_BY_MODULE).map(([key, mod]) => (
+              <button
+                key={key}
+                onClick={() => setActiveModule(key)}
+                className={clsx(
+                  'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all',
+                  activeModule === key
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-indigo-400'
+                )}
+              >
+                <span className="text-lg">{mod.icon}</span>
+                <span>{mod.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Billing Cycle Toggle — below module selection */}
+          <div className="flex justify-center mb-10 mt-6">
+            <div className="inline-flex items-center gap-1 p-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              {BILLING_CYCLES.map((cycle) => (
                 <button
-                  key={cycle}
-                  onClick={() => setBillingCycle(cycle)}
+                  key={cycle.key}
+                  onClick={() => setBillingCycle(cycle.key)}
                   className={clsx(
-                    'px-4 py-2 text-sm font-medium rounded-lg transition-all',
-                    billingCycle === cycle
+                    'px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap',
+                    billingCycle === cycle.key
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   )}
                 >
-                  {cycle.charAt(0).toUpperCase() + cycle.slice(1)}
-                  {cycle === 'yearly' && <span className="ml-1 text-xs opacity-80">-15%</span>}
+                  {cycle.label}
+                  {cycle.savePct && (
+                    <span className={clsx(
+                      'ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                      billingCycle === cycle.key
+                        ? 'bg-indigo-500 text-white'
+                        : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+                    )}>
+                      ~{cycle.savePct}% off
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {plans.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((plan) => {
-                const price = getPrice(plan);
-                const isPopular = plan.badge === 'Most Popular';
-                return (
-                  <div key={plan._id} className={clsx(
-                    'relative p-6 rounded-2xl border-2 transition-all',
-                    isPopular
-                      ? 'bg-white dark:bg-slate-800 border-indigo-500 shadow-xl shadow-indigo-500/10 scale-105'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
-                  )}>
-                    {plan.badge && (
-                      <span className={clsx(
-                        'absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-semibold rounded-full',
-                        isPopular ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                      )}>
-                        {plan.badge}
-                      </span>
-                    )}
-                    <div className="text-center">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{plan.name}</h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{plan.description}</p>
-                      <div className="mt-4">
-                        <span className="text-4xl font-bold text-slate-900 dark:text-white">₹{Math.round(price)}</span>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">{getPeriodLabel()}</span>
-                      </div>
-                    </div>
-                    <ul className="mt-6 space-y-3">
-                      {(plan.features || []).slice(0, 6).map((feat, i) => {
-                        const name = typeof feat === 'string' ? feat : feat.name || feat.key;
-                        const included = typeof feat === 'string' ? true : feat.included !== false;
-                        return (
-                          <li key={i} className={clsx('flex items-start gap-2 text-sm', included ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500 line-through')}>
-                            <Check className={clsx('w-4 h-4 mt-0.5 flex-shrink-0', included ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600')} />
-                            {name}
-                          </li>
-                        );
-                      })}
-                    </ul>
+          {/* Plans Grid */}
+          {(() => {
+            const module = PLANS_BY_MODULE[activeModule];
+            if (!module) return null;
+            const currentCycle = BILLING_CYCLES.find(c => c.key === billingCycle) || BILLING_CYCLES[0];
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {module.plans.map((plan, i) => {
+                  const isPopular = plan.badge === 'Most Popular';
+                  const isComingSoon = plan.comingSoon;
+                  const price = plan.prices?.[billingCycle];
+                  const monthlyPrice = plan.prices?.monthly;
+                  const hasPrice = price !== undefined && price !== null;
+                  const displayPrice = price ?? 0;
+                  const isFree = displayPrice === 0 && !isComingSoon;
 
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  return (
+                    <div key={i} className={clsx(
+                      'relative p-6 rounded-2xl border-2 transition-all flex flex-col',
+                      isPopular
+                        ? 'bg-white dark:bg-slate-800 border-indigo-500 shadow-xl shadow-indigo-500/10 scale-105'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-300',
+                      isComingSoon && 'opacity-60'
+                    )}>
+                      {plan.badge && (
+                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-semibold rounded-full bg-indigo-600 text-white whitespace-nowrap">
+                          {plan.badge}
+                        </span>
+                      )}
+                      <div className="text-center">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{plan.name}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 min-h-[2.5rem]">{plan.desc}</p>
+                        <div className="mt-4">
+                          {isComingSoon || !hasPrice ? (
+                            <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">—</span>
+                          ) : isFree ? (
+                            <>
+                              <span className="text-4xl font-bold text-slate-900 dark:text-white">Free Trial</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-4xl font-bold text-slate-900 dark:text-white">₹{displayPrice.toLocaleString('en-IN')}</span>
+                              <span className="text-sm text-slate-500 dark:text-slate-400">{currentCycle.suffix}</span>
+                              {/* Show calculated vs discounted price for longer cycles */}
+                              {billingCycle !== 'monthly' && monthlyPrice > 0 && (() => {
+                                const multiplier = { quarterly: 3, halfYearly: 6, yearly: 12 }[billingCycle] || 1;
+                                const calculatedPrice = monthlyPrice * multiplier;
+                                return (
+                                  <div className="mt-1.5">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                      <span className="line-through">₹{calculatedPrice.toLocaleString('en-IN')}</span>
+                                    </p>
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      {plan.features.length > 0 && (
+                        <ul className="mt-6 space-y-3 flex-1">
+                          {plan.features.map((feat, j) => (
+                            <li key={j} className={clsx(
+                              'flex items-start gap-2 text-sm',
+                              feat.i ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500 line-through'
+                            )}>
+                              <Check className={clsx(
+                                'w-4 h-4 mt-0.5 flex-shrink-0',
+                                feat.i ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'
+                              )} />
+                              {feat.n}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {isComingSoon && (
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                          <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
+                            Pricing coming soon —{' '}
+                            <a href="#contact" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                              Contact us
+                            </a>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+
+        </div>
+      </section>
+
+      {/* ===== CTA ===== */}
+      <section className="py-20 bg-gradient-to-br from-indigo-600 to-purple-700">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">Ready to transform your venue?</h2>
+          <p className="mt-4 text-lg text-indigo-100">Join thousands of sports facilities already using VenuePro. See why venue owners trust us.</p>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-indigo-700 bg-white rounded-xl hover:bg-indigo-50 transition-all shadow-lg flex items-center gap-2">
+              <Play className="w-4 h-4" /> Try Demo
+            </button>
+            <a href="#pricing" className="px-8 py-3.5 text-base font-medium text-white bg-white/20 border border-white/30 rounded-xl hover:bg-white/30 transition-all shadow-lg">
+              View Pricing
+            </a>
+          </div>
         </div>
       </section>
 
@@ -443,21 +575,7 @@ export default function BusinessLanding() {
         </div>
       </section>
 
-      {/* ===== CTA ===== */}
-      <section className="py-20 bg-gradient-to-br from-indigo-600 to-purple-700">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white">Ready to transform your venue?</h2>
-          <p className="mt-4 text-lg text-indigo-100">Join thousands of sports facilities already using VenuePro. See why venue owners trust us.</p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-indigo-700 bg-white rounded-xl hover:bg-indigo-50 transition-all shadow-lg flex items-center gap-2">
-              <Play className="w-4 h-4" /> Try Demo
-            </button>
-            <a href="#pricing" className="px-8 py-3.5 text-base font-medium text-white bg-white/20 border border-white/30 rounded-xl hover:bg-white/30 transition-all shadow-lg">
-              View Pricing
-            </a>
-          </div>
-        </div>
-      </section>
+
 
       {/* ===== DEMO MODAL ===== */}
       {showDemoModal && (

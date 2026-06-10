@@ -123,6 +123,12 @@ export default function PlayerLogin() {
           </div>
         </div>
 
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-sm text-slate-400 dark:text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
+
         <p className="text-center mt-6 text-xs text-slate-400 dark:text-slate-500">
           VenuePro SaaS v1.0 — Player Access
         </p>
