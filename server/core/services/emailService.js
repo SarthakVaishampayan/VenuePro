@@ -349,6 +349,67 @@ The VenuePro Team`;
 
     return this.sendRaw({ to, subject, text });
   }
+
+  /**
+   * Contact/sales inquiry notification sent to admin
+   */
+  async sendContactInquiry({ name, email, phone, businessName, businessType, message }) {
+    const adminEmail = process.env.ADMIN_EMAIL || 'sales@venuepro.com';
+    const subject = `New Sales Inquiry from ${name} — ${businessName || 'Unknown Venue'}`;
+    const text = `New Contact Inquiry
+
+Name: ${name}
+Email: ${email}
+Phone: ${phone || '—'}
+Business: ${businessName || '—'}
+Business Type: ${businessType || '—'}
+
+Message:
+${message}
+
+---
+This inquiry was submitted via the VenuePro contact form.`;
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f8;padding:20px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+        <tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">
+          <h1 style="color:#ffffff;font-size:20px;font-weight:700;margin:0;">📬 New Sales Inquiry</h1>
+        </td></tr>
+        <tr><td style="background:#ffffff;padding:32px 40px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding-bottom:12px;">
+              <span style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Contact</span><br/>
+              <span style="color:#1e293b;font-size:15px;font-weight:600;">${name}</span><br/>
+              <span style="color:#475569;font-size:14px;">${email}</span>
+              ${phone ? `<br/><span style="color:#475569;font-size:14px;">${phone}</span>` : ''}
+            </td></tr>
+            <tr><td style="padding-bottom:12px;">
+              <span style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Business</span><br/>
+              <span style="color:#1e293b;font-size:15px;">${businessName || '—'}</span>
+              ${businessType ? `<br/><span style="color:#475569;font-size:14px;">${businessType}</span>` : ''}
+            </td></tr>
+            <tr><td>
+              <span style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</span><br/>
+              <p style="color:#475569;font-size:14px;line-height:1.6;margin:4px 0 0;background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;">${message}</p>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background:#f8fafc;border-radius:0 0 12px 12px;padding:16px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+          <p style="color:#94a3b8;font-size:12px;margin:0;">Submitted via VenuePro contact form</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    return this.sendRaw({ to: adminEmail, subject, text, html });
+  }
 }
 
 export default new EmailService();

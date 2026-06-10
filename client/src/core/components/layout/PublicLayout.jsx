@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { Menu, X, LogIn, Moon, Sun, Sparkles, Users } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function PublicLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900">
@@ -35,9 +34,7 @@ export default function PublicLayout() {
               <button onClick={toggleTheme} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
-              <button onClick={() => navigate('/signup')} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-                Start Free Trial
-              </button>
+
               <Link to="/portal" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 <LogIn className="w-4 h-4" />
                 Sign In
@@ -60,7 +57,7 @@ export default function PublicLayout() {
               <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-violet-600 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/40 rounded-lg">
                 <Users className="w-4 h-4" /> Player Hub
               </Link>
-              <button onClick={() => { navigate('/signup'); setMobileOpen(false); }} className="w-full px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Start Free Trial</button>
+
               <Link to="/portal" onClick={() => setMobileOpen(false)} className="block px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Sign In</Link>
             </div>
           )}
@@ -93,7 +90,6 @@ export default function PublicLayout() {
                 <li><Link to="/business" className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors">Overview</Link></li>
                 <li><a href="/business#features" className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors">Features</a></li>
                 <li><a href="/business#pricing" className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors">Pricing</a></li>
-                <li><Link to="/signup" className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors">Sign Up</Link></li>
               </ul>
             </div>
             <div>

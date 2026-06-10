@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ArrowRight, Clock, Users, Shield, BarChart3, Smartphone, Globe, Sparkles, ChevronDown, X, Play } from 'lucide-react';
+import { Check, ArrowRight, Clock, Users, Shield, BarChart3, Smartphone, Globe, Sparkles, ChevronDown, X, Play, Send, Mail, Phone, Building2 } from 'lucide-react';
 import publicApi, { startDemo } from '../../services/publicApi';
 import { clsx } from 'clsx';
+import Input from '../../components/common/Input';
+import Button from '../../components/common/Button';
 
 const BUSINESS_TYPES = [
   { key: 'pool_snooker', name: 'Pool & Snooker Parlour', icon: '🎱', description: 'Tables, sessions, timer-based billing' },
@@ -21,9 +23,9 @@ const FEATURES = [
 ];
 
 const FAQS = [
-  { q: 'How does the free trial work?', a: 'Sign up for a 14-day free trial with full access to all features. No credit card required. After the trial, choose a plan that fits your needs.' },
+  { q: 'How can I get started?', a: 'Contact our sales team for a personalized demo and onboarding. We will set up your account, configure your venue, and walk you through everything.' },
   { q: 'Can I switch plans later?', a: 'Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.' },
-  { q: 'Is there a setup fee?', a: 'No setup fee for self-service signup. Enterprise customers can request white-glove onboarding for a one-time fee.' },
+  { q: 'Is there a setup fee?', a: 'There is no setup fee. Our team handles the entire onboarding process as part of your subscription.' },
   { q: 'What payment methods do you accept?', a: 'Subscription fees are collected via bank transfer, UPI, or cheque. Your customers can pay you via cash or online.' },
   { q: 'Can I use VenuePro for multiple locations?', a: 'Yes! The Professional and Enterprise plans support multiple branches with centralized management.' },
   { q: 'Is my data secure?', a: 'Absolutely. We use encryption at rest and in transit, strict tenant isolation, and regular security audits.' }
@@ -38,6 +40,14 @@ export default function BusinessLanding() {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState('');
+
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '', email: '', phone: '', businessName: '', businessType: '', message: ''
+  });
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
+  const [contactError, setContactError] = useState('');
 
   useEffect(() => {
     publicApi.get('/subscription-plans')
@@ -72,6 +82,46 @@ export default function BusinessLanding() {
     return prices.monthly || 0;
   };
 
+  const updateContact = (key, value) => setContactForm(f => ({ ...f, [key]: value }));
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setContactLoading(true);
+    setContactError('');
+    setContactSuccess(false);
+    try {
+      // Fetch the Web3Forms access key from the backend
+      const keyRes = await publicApi.get('/web3forms-key');
+      const accessKey = keyRes.data?.data?.key;
+
+      if (!accessKey) {
+        throw new Error('Web3Forms access key is not configured on the server.');
+      }
+
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_key: accessKey,
+          ...contactForm
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send message. Please try again.');
+      }
+
+      setContactSuccess(true);
+      setContactForm({ name: '', email: '', phone: '', businessName: '', businessType: '', message: '' });
+    } catch (err) {
+      setContactError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
   const getPeriodLabel = () => {
     if (billingCycle === 'yearly') return '/year';
     if (billingCycle === 'quarterly') return '/quarter';
@@ -97,20 +147,12 @@ export default function BusinessLanding() {
             Manage sessions, track payments, handle dues, and grow your business — all from one powerful dashboard.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => navigate('/signup')} className="px-8 py-3.5 text-base font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2">
-              Start Free Trial <ArrowRight className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all shadow-lg flex items-center gap-2">
+            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center gap-2">
               <Play className="w-4 h-4" /> Try Demo
             </button>
             <a href="#pricing" className="px-8 py-3.5 text-base font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
               View Pricing
             </a>
-          </div>
-          <div className="mt-12 flex items-center justify-center gap-8 text-sm text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> No credit card</span>
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> 14-day free trial</span>
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Cancel anytime</span>
           </div>
         </div>
       </section>
@@ -134,6 +176,163 @@ export default function BusinessLanding() {
                 <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== CONTACT / SALES INQUIRY ===== */}
+      <section id="contact" className="py-20 bg-white dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+            {/* Left: Message */}
+            <div className="lg:sticky lg:top-28">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-sm font-medium mb-6">
+                <Sparkles className="w-4 h-4" />
+                Get Started
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white leading-tight tracking-tight">
+                Want VenuePro at<br />
+                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">Your Venue?</span>
+              </h2>
+              <p className="mt-6 text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+                Tell us about your venue and we'll set everything up for you. No self-signup needed — our team handles the entire onboarding process.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {[
+                  { icon: Mail, text: 'admin@venuepro.com' },
+                  { icon: Phone, text: '+91 94253 40813' },
+                  { icon: Building2, text: 'Pool, turf, gaming, pickleball & more' }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <span>{item.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800/50">
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+                  <strong>Prefer a demo first?</strong> Try our interactive demo to explore the dashboard before you commit.
+                </p>
+                <button
+                  onClick={() => setShowDemoModal(true)}
+                  className="mt-3 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all"
+                >
+                  Try Demo
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Form */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Send us a message</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Fill in the form and our team will get back to you within 24 hours.</p>
+
+              {contactSuccess ? (
+                <div className="text-center py-10 animate-fadeIn">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Message Sent!</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Thank you for reaching out! Our sales team will contact you within 24 hours.
+                  </p>
+                  <button
+                    onClick={() => setContactSuccess(false)}
+                    className="mt-4 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Send another message
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Your Name"
+                      value={contactForm.name}
+                      onChange={(e) => updateContact('name', e.target.value)}
+                      placeholder="John Doe"
+                      required
+                    />
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={contactForm.email}
+                      onChange={(e) => updateContact('email', e.target.value)}
+                      placeholder="john@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Phone (optional)"
+                      type="tel"
+                      value={contactForm.phone}
+                      onChange={(e) => updateContact('phone', e.target.value)}
+                      placeholder="+91 9876543210"
+                    />
+                    <Input
+                      label="Business Name"
+                      value={contactForm.businessName}
+                      onChange={(e) => updateContact('businessName', e.target.value)}
+                      placeholder="My Venue"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-900 dark:text-white">
+                      Business Type
+                    </label>
+                    <select
+                      value={contactForm.businessType}
+                      onChange={(e) => updateContact('businessType', e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    >
+                      <option value="">Select your venue type</option>
+                      {BUSINESS_TYPES.map((bt) => (
+                        <option key={bt.key} value={bt.name}>{bt.icon} {bt.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-900 dark:text-white">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={contactForm.message}
+                      onChange={(e) => updateContact('message', e.target.value)}
+                      placeholder="Tell us about your venue and requirements..."
+                      required
+                      rows={4}
+                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
+                    />
+                  </div>
+
+                  {contactError && (
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                      {contactError}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    loading={contactLoading}
+                    disabled={!contactForm.name || !contactForm.email || !contactForm.message || contactForm.message.length < 10}
+                    className="w-full"
+                    size="lg"
+                    icon={Send}
+                  >
+                    Send Inquiry
+                  </Button>
+
+                  <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
+                    We respect your privacy. No spam, ever.
+                  </p>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -207,17 +406,7 @@ export default function BusinessLanding() {
                         );
                       })}
                     </ul>
-                    <button
-                      onClick={() => navigate(`/signup?plan=${plan.key}`)}
-                      className={clsx(
-                        'w-full mt-6 px-4 py-2.5 text-sm font-medium rounded-xl transition-all',
-                        isPopular
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
-                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600'
-                      )}
-                    >
-                      {plan.key === 'free' ? 'Get Started' : 'Start Free Trial'}
-                    </button>
+
                   </div>
                 );
               })}
@@ -258,14 +447,14 @@ export default function BusinessLanding() {
       <section className="py-20 bg-gradient-to-br from-indigo-600 to-purple-700">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white">Ready to transform your venue?</h2>
-          <p className="mt-4 text-lg text-indigo-100">Join thousands of sports facilities already using VenuePro. Start your free trial today.</p>
+          <p className="mt-4 text-lg text-indigo-100">Join thousands of sports facilities already using VenuePro. See why venue owners trust us.</p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => navigate('/signup')} className="px-8 py-3.5 text-base font-medium text-indigo-700 bg-white rounded-xl hover:bg-indigo-50 transition-all shadow-lg flex items-center gap-2">
-              Get Started Free <ArrowRight className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-white bg-white/20 border border-white/30 rounded-xl hover:bg-white/30 transition-all shadow-lg flex items-center gap-2">
+            <button onClick={() => setShowDemoModal(true)} className="px-8 py-3.5 text-base font-medium text-indigo-700 bg-white rounded-xl hover:bg-indigo-50 transition-all shadow-lg flex items-center gap-2">
               <Play className="w-4 h-4" /> Try Demo
             </button>
+            <a href="#pricing" className="px-8 py-3.5 text-base font-medium text-white bg-white/20 border border-white/30 rounded-xl hover:bg-white/30 transition-all shadow-lg">
+              View Pricing
+            </a>
           </div>
         </div>
       </section>
@@ -314,10 +503,7 @@ export default function BusinessLanding() {
 
               <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
                 <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-                  No sign-up required. Demo auto-expires in 24 hours.{' '}
-                  <button onClick={() => { setShowDemoModal(false); navigate('/signup'); }} className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                    Sign up free instead
-                  </button>
+                  No sign-up required. Demo auto-expires in 24 hours.
                 </p>
               </div>
 

@@ -13,6 +13,7 @@ import { logger } from '../config/logger.js';
 import BusinessType from '../models/BusinessType.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import tenantProvisioningService from '../services/tenantProvisioningService.js';
+import emailService from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -197,6 +198,87 @@ router.post('/auth/signup', authLimiter, validateBody(signupSchema), async (req,
         code: 'DUPLICATE_EMAIL'
       });
     }
+    next(err);
+  }
+});
+
+// ============================================================
+// GET /api/public/web3forms-key
+// ============================================================
+
+/**
+ * @swagger
+ * /api/public/web3forms-key:
+ *   get:
+ *     tags: [Public]
+ *     summary: Get the Web3Forms access key for the contact form
+ *     responses:
+ *       200:
+ *         description: Returns the Web3Forms access key
+ */
+router.get('/web3forms-key', (req, res) => {
+  const key = process.env.WEB3FORMS_ACCESS_KEY || process.env.VITE_WEB3FORMS_ACCESS_KEY || '';
+  return successResponse(res, { data: { key } });
+});
+
+// ============================================================
+// Schemas — Contact Inquiry
+// ============================================================
+
+const contactSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Invalid email').toLowerCase().trim(),
+  phone: z.string().optional(),
+  businessName: z.string().min(2, 'Business name must be at least 2 characters').max(100).optional(),
+  businessType: z.string().optional(),
+  message: z.string().min(10, 'Message must be at least 10 characters').max(2000)
+});
+
+// ============================================================
+// POST /api/public/contact
+// ============================================================
+
+/**
+ * @swagger
+ * /api/public/contact:
+ *   post:
+ *     tags: [Public]
+ *     summary: Submit a sales/contact inquiry
+ *     description: Sends an inquiry notification to the sales team
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, message]
+ *             properties:
+ *               name: { type: string }
+ *               email: { type: string }
+ *               phone: { type: string }
+ *               businessName: { type: string }
+ *               businessType: { type: string }
+ *               message: { type: string }
+ *     responses:
+ *       200:
+ *         description: Inquiry submitted successfully
+ *       400:
+ *         description: Validation error
+ */
+router.post('/contact', validateBody(contactSchema), async (req, res, next) => {
+  try {
+    const { name, email, phone, businessName, businessType, message } = req.body;
+
+    await emailService.sendContactInquiry({
+      name, email, phone, businessName, businessType, message
+    });
+
+    logger.info(`Contact inquiry received from ${name} (${email})`);
+
+    return successResponse(res, {
+      message: 'Thank you for reaching out! Our team will get back to you within 24 hours.'
+    });
+  } catch (err) {
     next(err);
   }
 });
