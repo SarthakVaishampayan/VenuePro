@@ -134,12 +134,22 @@ export default function PlayerLanding() {
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
+              {/* For Venue Owners - prominent CTA */}
+              <Link
+                to="/business"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all"
+              >
+                <Building2 className="w-4 h-4" />
+                For Venue Owners
+              </Link>
+
+              <div className="h-5 w-px bg-slate-300 dark:bg-slate-600" />
+
               {/* Admin Access - subtle link to business portal */}
               <Link
                 to="/portal"
                 className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               >
-                <Building2 className="w-4 h-4" />
                 Admin
               </Link>
 
@@ -177,6 +187,9 @@ export default function PlayerLanding() {
               <a href="#testimonials" onClick={() => setMobileOpen(false)} className="block px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Testimonials</a>
               <a href="#faq" onClick={() => setMobileOpen(false)} className="block px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">FAQ</a>
               <div className="border-t border-slate-200 dark:border-slate-700 pt-2" />
+              <Link to="/business" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                <Building2 className="w-4 h-4" /> For Venue Owners
+              </Link>
               <Link to="/portal" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
                 <Building2 className="w-4 h-4" /> Admin Access
               </Link>
