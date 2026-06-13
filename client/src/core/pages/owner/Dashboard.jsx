@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Table2, DollarSign, Wallet, TrendingUp, Receipt, Sparkles, RotateCcw } from 'lucide-react';
+import { Clock, Table2, DollarSign, Wallet, TrendingUp, Receipt } from 'lucide-react';
 import { useOwnerAuth } from '../../context/OwnerAuthContext';
 import ownerApi from '../../services/ownerApi';
 import { Card, CardHeader, StatCard } from '../../components/common/Card';
 import { PageLoader } from '../../components/common/Loader';
 import TrialBanner from '../../components/common/TrialBanner';
 import FirstLoginWelcome from '../../components/common/FirstLoginWelcome';
-import DemoTour from '../../components/common/DemoTour';
-import publicApi from '../../services/publicApi';
 
 export default function OwnerDashboard() {
   const { user } = useOwnerAuth();
@@ -29,12 +27,6 @@ export default function OwnerDashboard() {
     } catch {}
     return true;
   });
-  const [showDemoTour, setShowDemoTour] = useState(() => {
-    // Show demo tour once per browser (uses persistent localStorage flag)
-    // This avoids issues with backend firstLogin being reset on refresh
-    if (user?.isDemo === true && !localStorage.getItem('demoTourCompleted')) return true;
-    return false;
-  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,43 +45,7 @@ export default function OwnerDashboard() {
     }
   };
 
-  const handleDemoTourComplete = useCallback(() => {
-    setShowDemoTour(false);
-    // Persist completion to localStorage so tour never shows again, even on refresh
-    localStorage.setItem('demoTourCompleted', 'true');
-  }, []);
-
-  const [demoResetLoading, setDemoResetLoading] = useState(false);
-  const [demoResetError, setDemoResetError] = useState('');
-
-  const handleResetDemo = useCallback(async () => {
-    if (!window.confirm('Reset all demo data? This will restore fresh sample data and clear all current data.')) return;
-    setDemoResetLoading(true);
-    setDemoResetError('');
-    try {
-      const res = await publicApi.post('/demo/reset', {
-        tenantId: user?.tenantId,
-        businessTypeKey: user?.businessType,
-      });
-      // Refresh dashboard to show fresh data
-      fetchDashboard();
-    } catch (err) {
-      setDemoResetError(err.response?.data?.message || 'Failed to reset demo data.');
-    } finally {
-      setDemoResetLoading(false);
-    }
-  }, [user, fetchDashboard]);
-
-  const handleDemoTourNavigate = useCallback((path) => {
-    navigate(path);
-  }, [navigate]);
-
   if (loading) return <PageLoader />;
-
-  // Demo tour for demo users
-  if (showDemoTour) {
-    return <DemoTour onComplete={handleDemoTourComplete} onNavigate={handleDemoTourNavigate} />;
-  }
 
   // First login welcome wizard
   if (showWelcome) {
@@ -100,48 +56,6 @@ export default function OwnerDashboard() {
     <div className="space-y-6 animate-fadeIn">
       {/* Trial Banner */}
       <TrialBanner />
-
-      {/* Demo Banner */}
-      {user?.isDemo === true && (
-        <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg">
-          <div className="flex items-start sm:items-center gap-3 flex-col sm:flex-row">
-            <div className="p-2 rounded-lg bg-white/20 flex-shrink-0">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">
-                🎯 You're exploring a demo — data resets automatically in 24 hours
-              </p>
-              <p className="text-xs text-indigo-100 mt-0.5">
-                Pre-loaded with sample data. No credit card required.{' '}
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="underline font-medium hover:text-white transition-colors"
-                >
-                  Sign up free to save your work
-                </button>
-              </p>
-            </div>
-            <div className="flex-shrink-0 flex items-center gap-2 mt-2 sm:mt-0">
-              {demoResetError && (
-                <p className="text-xs text-red-200">{demoResetError}</p>
-              )}
-              <button
-                onClick={handleResetDemo}
-                disabled={demoResetLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-lg transition-all disabled:opacity-50"
-              >
-                {demoResetLoading ? (
-                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3 h-3" />
-                )}
-                {demoResetLoading ? 'Resetting...' : 'Reset Demo Data'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Welcome */}
       <div>

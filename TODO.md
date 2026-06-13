@@ -65,6 +65,17 @@
 - [ ] **Mobile responsive** — Ensure subscription details section is mobile-friendly
 - [ ] **Loading states** — Add skeleton loaders for billing/subscription sections
 
+### Offers / Promotions
+
+- [ ] **Offer model** — Create `server/core/models/Offer.js` with fields: tenantId, title, description, discountType (percentage/flat/bundle), discountValue, validFrom, validUntil, applicableDays, applicableResourceIds, minBookingDuration, isActive, maxRedemptions, currentRedemptions
+- [ ] **Offer controller** — Create `server/core/controllers/offerController.js` with CRUD + toggle active + player-facing list endpoints
+- [ ] **Offer routes** — Mount as a tenant-aware feature dispatcher in `server.js` (like dues/expenses)
+- [ ] **Player offers endpoint** — `GET /api/player/offers` in `playerPortal.js` to fetch active offers for the upcoming week across linked venues
+- [ ] **Owner: Offers management page** — New route `/owner/offers` with a table listing all offers + create/edit form (title, discount, dates, applicable resources, active toggle)
+- [ ] **Player: Offers page** — New route `/play/offers` showing all active offers for the upcoming week from linked venues, with clear CTAs
+- [ ] **Navigation items** — Add "Offers" to both `OwnerLayout.jsx` and `PlayerLayout.jsx` sidebar nav arrays
+- [ ] **App routing** — Register new routes in the client router configuration
+
 ---
 
 ## 🐛 Known Issues

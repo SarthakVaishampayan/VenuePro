@@ -1,7 +1,7 @@
 // ============================================================
 // PUBLIC API SERVICE — No auth required
 // ============================================================
-// Used by landing page, signup form, pricing page, and demo.
+// Used by landing page, signup form, and pricing page.
 // These endpoints do NOT require authentication.
 
 import axios from 'axios';
@@ -13,20 +13,6 @@ const publicApi = axios.create({
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000
 });
-
-// Demo API — start a demo tenant
-// POST /api/public/demo/start
-export const startDemo = async (businessTypeKey) => {
-  const { data } = await publicApi.post('/demo/start', { businessTypeKey });
-  return data;
-};
-
-// Demo API — reset demo data
-// POST /api/public/demo/reset
-export const resetDemo = async (tenantId, businessTypeKey) => {
-  const { data } = await publicApi.post('/demo/reset', { tenantId, businessTypeKey });
-  return data;
-};
 
 // ============================================================
 // PUBLIC VENUE AVAILABILITY — No auth required

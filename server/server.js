@@ -297,17 +297,15 @@ staffShiftRouter.delete('/:id', staffShiftController.deleteShift);
 app.use('/api/tenant/staff/shifts', staffShiftRouter);
 
 // ============================================================
-// PUBLIC ROUTES (no auth required — landing page, signup, pricing, demo)
+// PUBLIC ROUTES (no auth required — landing page, signup, pricing)
 // ============================================================
 
 import { router as publicAuthRoutes } from './core/routes/publicAuth.js';
-import { router as publicDemoRoutes } from './core/routes/demo.js';
 import { router as playerAuthRoutes } from './core/routes/playerAuth.js';
 import { router as playerPortalRoutes } from './core/routes/playerPortal.js';
 import { tenantRouter as tenantNotificationRoutes, platformRouter as platformNotificationRoutes } from './core/routes/notifications.js';
 
 app.use('/api/public', publicAuthRoutes);
-app.use('/api/public/demo', publicDemoRoutes);
 
 // Player Portal routes
 app.use('/api/player/auth', playerAuthRoutes);
@@ -317,7 +315,7 @@ app.use('/api/player', playerPortalRoutes);
 app.use('/api/tenant/notifications', tenantNotificationRoutes);
 app.use('/api/platform/notifications', platformNotificationRoutes);
 
-logger.info('Public routes registered (signup, pricing, demo)');
+logger.info('Public routes registered (signup, pricing)');
 logger.info('Player Portal routes registered');
 logger.info('Notification routes registered');
 
@@ -357,14 +355,6 @@ const startServer = async () => {
     logger.info(`API Docs: http://localhost:${PORT}/api-docs`);
   });
   
-  // Start demo cleanup cron (non-blocking)
-  try {
-    const { startDemoCleanup } = await import('./jobs/demoCleanup.js');
-    startDemoCleanup();
-  } catch (err) {
-    logger.warn(`Demo cleanup cron not started: ${err.message}`);
-  }
-
   // Start trial expiry cron — auto-transition expired trials to overdue
   try {
     const { startTrialExpiryCheck } = await import('./jobs/trialExpiry.js');
